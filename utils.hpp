@@ -29,6 +29,7 @@ License along with this library; if not, write to the Free Software
 #include <vector>
 #include <sys/stat.h>
 #include <iomanip>
+#include <sstream>
 
 typedef struct {
     int nCount;

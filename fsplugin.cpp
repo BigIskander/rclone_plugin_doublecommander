@@ -95,7 +95,7 @@ HANDLE DCPCALL FsFindFirstW(WCHAR* Path, WIN32_FIND_DATAW *FindData)
         if(status != 0) {
             // if error occured
             gLogProc(gPluginNumber, MSGTYPE_IMPORTANTERROR, 
-                wcharstring((WCHAR*)u"Command (rclone listremotes) exited with status ").append(int_to_wcharstring(status)).data()
+                (WCHAR*) wcharstring((WCHAR*)u"Command (rclone listremotes) exited with status ").append(int_to_wcharstring(status)).data()
             );
             return (HANDLE)-1;
         }
@@ -184,7 +184,7 @@ HANDLE DCPCALL FsFindFirstW(WCHAR* Path, WIN32_FIND_DATAW *FindData)
         }
         catch(const std::exception& e)
         {
-            gLogProc(gPluginNumber, MSGTYPE_IMPORTANTERROR, UTF8toUTF16(e.what()).data());
+            gLogProc(gPluginNumber, MSGTYPE_IMPORTANTERROR, (WCHAR*) UTF8toUTF16(e.what()).data());
         }
     }
 
