@@ -52,6 +52,23 @@ int DCPCALL FsInitW(int PluginNr, tProgressProcW pProgressProc, tLogProcW pLogPr
 bool isInit = false;
 bool isPut = false;
 
+wcharstring sanitize(wcharstring value) 
+{
+    // escape special characters https://www.gnu.org/software/bash/manual/html_node/Double-Quotes.html
+    wcharstring sanitizedValue = (WCHAR*)u"\"";
+    for(int i = 0; i < value.size(); i++) {
+        if(
+            value.at(i) == (WCHAR)u'$' || value.at(i) == (WCHAR)u'`' || 
+            value.at(i) == (WCHAR)u'\\' || value.at(i) == (WCHAR)u'!'
+        ) {
+            sanitizedValue.push_back((WCHAR)u'\\');
+        }
+        sanitizedValue.push_back(value.at(i));
+    }
+    sanitizedValue.push_back((WCHAR)u'"');
+    return sanitizedValue;
+}
+
 HANDLE DCPCALL FsFindFirstW(WCHAR* Path, WIN32_FIND_DATAW *FindData)
 {
     pResources pRes = NULL;
@@ -75,14 +92,20 @@ HANDLE DCPCALL FsFindFirstW(WCHAR* Path, WIN32_FIND_DATAW *FindData)
 
     if(wPath.length() == 1) { // root folder of plugin
         // gLogProc(gPluginNumber, MSGTYPE_CONNECT, (WCHAR*)u"123");
-        // request list of configured storages (available romotes) from rclone's config 
-        const char* command = "rclone listremotes";
+        // request list of configured storages (available remotes) from rclone's config 
+        std::string commandString("rclone listremotes");
+#ifdef __APPLE__
+        commandString.insert(0, std::string("source ~/.zprofile; "));
+#endif
+        const char* command = commandString.c_str();
         std::unique_ptr<FILE, decltype(&pclose)> pipe(popen(command, "r"), pclose);
         
-        if (!pipe) return (HANDLE)-1; // popen failed
+        if (!pipe) {
+            gLogProc(gPluginNumber, MSGTYPE_IMPORTANTERROR, (WCHAR*)u"C++ popen() failed.");
+            return (HANDLE)-1; // popen failed
+        }
 
         // Read the output line by line into the buffer
-        wcharstring resultLine;
         while (fgets(buffer.data(), buffer.size(), pipe.get()) != nullptr) {
             wcharstring itemName = UTF8toUTF16(buffer.data());
             if(std::isspace(itemName.at(itemName.size() - 1))) // delete last element if it is space
@@ -95,7 +118,8 @@ HANDLE DCPCALL FsFindFirstW(WCHAR* Path, WIN32_FIND_DATAW *FindData)
         if(status != 0) {
             // if error occured
             gLogProc(gPluginNumber, MSGTYPE_IMPORTANTERROR, 
-                (WCHAR*) wcharstring((WCHAR*)u"Command (rclone listremotes) exited with status ").append(int_to_wcharstring(status)).data()
+                (WCHAR*) wcharstring((WCHAR*)u"Command (rclone listremotes) exited with status ")
+                    .append(int_to_wcharstring(status)).data()
             );
             return (HANDLE)-1;
         }
@@ -118,37 +142,41 @@ HANDLE DCPCALL FsFindFirstW(WCHAR* Path, WIN32_FIND_DATAW *FindData)
             );
             pRes->resource_array[i].dwFileAttributes = FILE_ATTRIBUTE_DIRECTORY;
         }
-        
+
     } else {
         // request list of configured storages (available romotes) from rclone's config 
-        // TODO: it is unsafe for now need to be sanitized
         std::string commandString = UTF16toUTF8(
-                wcharstring((WCHAR*)u"rclone lsjson \"").append(wPath.substr(1)).append((WCHAR*)u"\"").data()
+                wcharstring((WCHAR*)u"rclone lsjson ").append(sanitize(wPath.substr(1))).data()
             );
+#ifdef __APPLE__
+        commandString.insert(0, std::string("source ~/.zprofile; "));
+#endif
         const char* command = commandString.c_str();
         std::unique_ptr<FILE, decltype(&pclose)> pipe(popen(command, "r"), pclose);
         
-        if (!pipe) return (HANDLE)-1; // popen failed
-
-        // gLogProc(gPluginNumber, MSGTYPE_IMPORTANTERROR, UTF8toUTF16(command).data());
+        if (!pipe) {
+            gLogProc(gPluginNumber, MSGTYPE_IMPORTANTERROR, (WCHAR*)u"C++ popen() failed.");
+            return (HANDLE)-1; // popen failed
+        }
         
         // Read the output line by line into the buffer
         while (fgets(buffer.data(), buffer.size(), pipe.get()) != nullptr) {
             resultString += buffer.data();
         }
 
-        // gLogProc(gPluginNumber, MSGTYPE_IMPORTANTERROR, UTF8toUTF16(resultString).data());
-
         // close popen
         int status = pclose(pipe.release());
+        if(status != 0) {
+            // if error occured
+            gLogProc(gPluginNumber, MSGTYPE_IMPORTANTERROR, 
+                (WCHAR*) wcharstring((WCHAR*)u"Command (rclone listremotes) exited with status ")
+                    .append(int_to_wcharstring(status)).data()
+            );
+            return (HANDLE)-1;
+        }
 
         try
         {
-            /* code */
-        
-        
-            // return (HANDLE)-1;
-
             // parse Json string and convert to vector of individual items
             nlohmann::json resultJson = nlohmann::json::parse(resultString);
             std::vector<nlohmann::json> resultJsonVector;
@@ -180,11 +208,11 @@ HANDLE DCPCALL FsFindFirstW(WCHAR* Path, WIN32_FIND_DATAW *FindData)
                 pRes->resource_array[i].ftLastWriteTime = get_file_time(resultJsonVector[i]["ModTime"]);
 
             }
-
         }
         catch(const std::exception& e)
         {
             gLogProc(gPluginNumber, MSGTYPE_IMPORTANTERROR, (WCHAR*) UTF8toUTF16(e.what()).data());
+            return (HANDLE)-1;
         }
     }
 
