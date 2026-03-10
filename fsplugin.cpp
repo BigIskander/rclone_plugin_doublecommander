@@ -96,7 +96,7 @@ HANDLE DCPCALL FsFindFirstW(WCHAR* Path, WIN32_FIND_DATAW *FindData)
         if(isPut) return (HANDLE)-1;
     } 
 
-    // varianles used for request to rclone
+    // variables used for request to rclone
     std::array<char, 128> buffer;
     std::vector<wcharstring> resultVector;
     std::string resultString;
@@ -151,7 +151,7 @@ HANDLE DCPCALL FsFindFirstW(WCHAR* Path, WIN32_FIND_DATAW *FindData)
         }
 
     } else {
-        // request list of configured storages (available romotes) from rclone's config 
+        // request list of items in folder of cloud storage (in json format)
         std::string commandString = UTF16toUTF8(
                 wcharstring((WCHAR*)u"rclone lsjson ").append(sanitize(wPath.substr(1))).data()
             );
@@ -261,4 +261,55 @@ int DCPCALL FsFindClose(HANDLE Hdl)
 void DCPCALL FsGetDefRootName(char* DefRootName, int maxlen)
 {
     strncpy(DefRootName, _plugin_name, maxlen);
+}
+
+int DCPCALL FsGetFileW(WCHAR* RemoteName, WCHAR* LocalName, int CopyFlags, RemoteInfoStruct* ri)
+{
+    if(CopyFlags & FS_COPYFLAGS_RESUME) // resume copy not supported
+        return FS_FILE_NOTSUPPORTED;
+
+    wcharstring wPath(RemoteName), deviceName, storageName, internalPath, wLocal(LocalName);
+    if(wPath.length() == 0 || wLocal.length() == 0) return FS_FILE_OK; // just ignore this case
+    std::replace(wPath.begin(), wPath.end(), u'\\', u'/');
+
+    if(wPath == (WCHAR*)u"/")
+        return FS_FILE_NOTSUPPORTED;
+
+    // do not copy if file exists and no overwrite flag is set
+    BOOL isFileExists = file_exists(UTF16toUTF8(LocalName));
+    if(isFileExists && !(CopyFlags & FS_COPYFLAGS_OVERWRITE) )
+        return FS_FILE_EXISTS;
+
+    if(gProgressProc(gPluginNumber, RemoteName, LocalName, 0) != 0) 
+        return FS_FILE_USERABORT;
+
+    // copy file from to (replaces file if already exists)
+    std::string commandString = UTF16toUTF8(
+            wcharstring((WCHAR*)u"rclone copyto ") // copy
+                .append(sanitize(wPath.substr(1))) // from
+                .append((WCHAR*)u" ")
+                .append(sanitize(wLocal)).data() // to
+        );
+    std::unique_ptr<FILE, decltype(&pclose)> pipe = executeCommand(commandString); 
+
+    if (!pipe) {
+        gLogProc(gPluginNumber, MSGTYPE_IMPORTANTERROR, (WCHAR*)u"C++ popen() failed.");
+        return FS_FILE_READERROR; // popen failed
+    }
+
+    // close popen
+    int status = pclose(pipe.release());
+    if(status != 0) {
+        // if error occured
+        gLogProc(gPluginNumber, MSGTYPE_IMPORTANTERROR, 
+            (WCHAR*) wcharstring((WCHAR*)u"Command (")
+                .append(UTF8toUTF16(commandString))
+                .append((WCHAR*)u") exited with status ")
+                .append(int_to_wcharstring(status)).data()
+        );
+        return FS_FILE_WRITEERROR;
+    }
+
+    gProgressProc(gPluginNumber, RemoteName, LocalName, 100);
+    return FS_FILE_OK;
 }
