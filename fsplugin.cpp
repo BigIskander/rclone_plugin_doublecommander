@@ -69,6 +69,17 @@ wcharstring sanitize(wcharstring value)
     return sanitizedValue;
 }
 
+// execute shell command and return stdout pipe
+std::unique_ptr<FILE, decltype(&pclose)> executeCommand(std::string commandString)
+{
+#ifdef __APPLE__
+    commandString.insert(0, std::string("source ~/.zprofile; "));
+#endif
+    const char* command = commandString.c_str();
+    std::unique_ptr<FILE, decltype(&pclose)> pipe(popen(command, "r"), pclose);
+    return pipe;
+}
+
 HANDLE DCPCALL FsFindFirstW(WCHAR* Path, WIN32_FIND_DATAW *FindData)
 {
     pResources pRes = NULL;
@@ -94,11 +105,7 @@ HANDLE DCPCALL FsFindFirstW(WCHAR* Path, WIN32_FIND_DATAW *FindData)
         // gLogProc(gPluginNumber, MSGTYPE_CONNECT, (WCHAR*)u"123");
         // request list of configured storages (available remotes) from rclone's config 
         std::string commandString("rclone listremotes");
-#ifdef __APPLE__
-        commandString.insert(0, std::string("source ~/.zprofile; "));
-#endif
-        const char* command = commandString.c_str();
-        std::unique_ptr<FILE, decltype(&pclose)> pipe(popen(command, "r"), pclose);
+        std::unique_ptr<FILE, decltype(&pclose)> pipe = executeCommand(commandString);
         
         if (!pipe) {
             gLogProc(gPluginNumber, MSGTYPE_IMPORTANTERROR, (WCHAR*)u"C++ popen() failed.");
@@ -148,11 +155,7 @@ HANDLE DCPCALL FsFindFirstW(WCHAR* Path, WIN32_FIND_DATAW *FindData)
         std::string commandString = UTF16toUTF8(
                 wcharstring((WCHAR*)u"rclone lsjson ").append(sanitize(wPath.substr(1))).data()
             );
-#ifdef __APPLE__
-        commandString.insert(0, std::string("source ~/.zprofile; "));
-#endif
-        const char* command = commandString.c_str();
-        std::unique_ptr<FILE, decltype(&pclose)> pipe(popen(command, "r"), pclose);
+        std::unique_ptr<FILE, decltype(&pclose)> pipe = executeCommand(commandString);
         
         if (!pipe) {
             gLogProc(gPluginNumber, MSGTYPE_IMPORTANTERROR, (WCHAR*)u"C++ popen() failed.");
