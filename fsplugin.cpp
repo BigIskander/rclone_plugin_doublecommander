@@ -72,12 +72,47 @@ wcharstring sanitize(wcharstring value)
 // execute shell command and return stdout pipe
 std::unique_ptr<FILE, decltype(&pclose)> executeCommand(std::string commandString)
 {
-#ifdef __APPLE__
-    commandString.insert(0, std::string("source ~/.zprofile; "));
-#endif
     const char* command = commandString.c_str();
     std::unique_ptr<FILE, decltype(&pclose)> pipe(popen(command, "r"), pclose);
     return pipe;
+}
+
+void setEnvVariables()
+{
+#ifdef __APPLE__
+    // source from ~/.zprofile file and get $PATH env variable
+    std::string commandString = "source ~/.zprofile > /dev/null 2>&1; echo $PATH";
+    std::unique_ptr<FILE, decltype(&pclose)> pipe = executeCommand(commandString);
+    if (!pipe) {
+        gLogProc(gPluginNumber, MSGTYPE_IMPORTANTERROR, (WCHAR*)u"C++ popen() failed.");
+        return; // popen failed
+    }
+    // Read the output line by line into the buffer
+    std::array<char, 128> buffer;
+    std::string resultString;
+    while (fgets(buffer.data(), buffer.size(), pipe.get()) != nullptr) {
+        resultString += buffer.data();
+    }
+    // close popen
+    int status = pclose(pipe.release());
+    if(status != 0) {
+        // if error occured
+        gLogProc(gPluginNumber, MSGTYPE_IMPORTANTERROR, 
+            (WCHAR*) wcharstring((WCHAR*)u"Command (")
+                .append(UTF8toUTF16(commandString))
+                .append((WCHAR*)u") exited with status ")
+                .append(int_to_wcharstring(status)).data()
+        );
+        return;
+    }
+    // set $PATH env variable
+    status = setenv("PATH", resultString.c_str(), 1);
+    if(status != 0) {
+        gLogProc(gPluginNumber, MSGTYPE_IMPORTANTERROR, (WCHAR*)u"Failed to set PATH env variable.");
+    }
+    gLogProc(gPluginNumber, MSGTYPE_DETAILS, (WCHAR*)u"Set PATH env variable.");
+#endif
+    return;
 }
 
 HANDLE DCPCALL FsFindFirstW(WCHAR* Path, WIN32_FIND_DATAW *FindData)
@@ -95,6 +130,12 @@ HANDLE DCPCALL FsFindFirstW(WCHAR* Path, WIN32_FIND_DATAW *FindData)
         // ignore this kind of request when put files, for speed
         if(isPut) return (HANDLE)-1;
     } 
+
+    if(!isInit)
+    {
+        setEnvVariables(); // set env variables only once
+        isInit = true;
+    }
 
     // variables used for request to rclone
     std::array<char, 128> buffer;
