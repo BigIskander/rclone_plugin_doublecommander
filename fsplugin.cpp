@@ -109,10 +109,69 @@ void setEnvVariables()
     status = setenv("PATH", resultString.c_str(), 1);
     if(status != 0) {
         gLogProc(gPluginNumber, MSGTYPE_IMPORTANTERROR, (WCHAR*)u"Failed to set PATH env variable.");
+        return;
     }
     gLogProc(gPluginNumber, MSGTYPE_DETAILS, (WCHAR*)u"Set PATH env variable.");
 #endif
     return;
+}
+
+// variables and function to manage cache
+std::vector<wcharstring> busyFolders;
+
+struct PathFolderElement
+{
+    wcharstring path;
+    std::vector<wcharstring> elementsCache;
+};
+
+std::vector<PathFolderElement> cacheOfFolders;
+
+void addBusyFolder(wcharstring folder) 
+{
+    if(folder.length() == 0) return;
+    busyFolders.push_back(folder);
+}
+
+bool isFolderBusy(wcharstring folder)
+{
+    if(folder.length() == 0) return false;
+    auto it = std::find_if(
+        busyFolders.begin(), 
+        busyFolders.end(), 
+        [folder](const wcharstring& item) 
+        {
+            return item == folder;
+        }
+    );
+    if(it == busyFolders.end()) return false;
+    return true;
+}
+
+PathFolderElement* getFolderCache(wcharstring folder) 
+{
+    if(folder.length() == 0) return NULL;
+    auto it = std::find_if(
+        cacheOfFolders.begin(),
+        cacheOfFolders.end(),
+        [folder](const wcharstring& item)
+        {
+            return item == folder;
+        }
+    );
+    if(it == cacheOfFolders.end()) return NULL;
+    return &(*it);
+}
+
+void makeFolderItemsCache(wcharstring folderPath) {
+    if(folderPath.length() == 0) return;
+    // get list of files
+
+    //
+
+    PathFolderElement* folderCache = getFolderCache(folderPath);
+
+    /* not implemented yet */
 }
 
 HANDLE DCPCALL FsFindFirstW(WCHAR* Path, WIN32_FIND_DATAW *FindData)
@@ -353,4 +412,62 @@ int DCPCALL FsGetFileW(WCHAR* RemoteName, WCHAR* LocalName, int CopyFlags, Remot
 
     gProgressProc(gPluginNumber, RemoteName, LocalName, 100);
     return FS_FILE_OK;
+}
+
+int DCPCALL FsPutFileW(WCHAR* LocalName, WCHAR* RemoteName, int CopyFlags) {
+    if (CopyFlags & FS_COPYFLAGS_RESUME)
+        return FS_FILE_NOTSUPPORTED;
+
+    // this hint is never sent
+    if(((CopyFlags & FS_COPYFLAGS_EXISTS_SAMECASE) || (CopyFlags & FS_COPYFLAGS_EXISTS_DIFFERENTCASE)) 
+            && !(CopyFlags & FS_COPYFLAGS_OVERWRITE))  
+        return FS_FILE_EXISTS;
+    
+    wcharstring wPath(RemoteName), deviceName, storageName, internalPath, 
+        folderPath, fileName, wLocal(LocalName);
+    if(wPath.length() == 0 || wLocal.length() == 0) return FS_FILE_OK; // just ignore this case
+    std::replace(wPath.begin(), wPath.end(), u'\\', u'/');
+
+    if(gProgressProc(gPluginNumber, LocalName, RemoteName, 0) != 0) 
+        return FS_FILE_USERABORT;
+
+    // make cache if cache not exists (skip this step otherwise)
+    if(!isFolderBusy(folderPath)) 
+    {
+        makeFolderItemsCache(folderPath);
+        addBusyFolder(folderPath);
+    }
+
+    /* not implemented yet */
+
+    gProgressProc(gPluginNumber, LocalName, RemoteName, 100); 
+    return FS_FILE_OK;
+}
+
+// managing cache in this function
+void DCPCALL FsStatusInfoW(WCHAR* RemoteDir, int InfoStartEnd, int InfoOperation)
+{
+    wcharstring wPath(RemoteDir);
+    // fix for wierd issue when Double Commander sends RemoteDir as empty (basic_string)
+    if(wPath.length() == 0) return; 
+    std::replace(wPath.begin(), wPath.end(), u'\\', u'/');
+    if(wPath.size() > 1 && wPath.substr(wPath.size() - 1) == (WCHAR*)u"/")
+    {
+        wPath = wPath.substr(0, wPath.size() - 1);
+    }
+    // put file or files
+    if(InfoOperation == FS_STATUS_OP_PUT_SINGLE || InfoOperation == FS_STATUS_OP_PUT_MULTI)
+    {
+        if(InfoStartEnd == FS_STATUS_START) 
+        {
+            isPut = true;
+            makeFolderItemsCache(wPath);
+            busyFolders.clear();
+            addBusyFolder(wPath);
+        }  
+        if(InfoStartEnd == FS_STATUS_END) 
+        {
+            isPut = false;
+        }
+    }
 }
