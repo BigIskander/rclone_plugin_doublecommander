@@ -234,22 +234,38 @@ int DCPCALL FsPutFileW(WCHAR* LocalName, WCHAR* RemoteName, int CopyFlags) {
             && !(CopyFlags & FS_COPYFLAGS_OVERWRITE))  
         return FS_FILE_EXISTS;
     
-    wcharstring wPath(RemoteName), deviceName, storageName, internalPath, 
-        folderPath, fileName, wLocal(LocalName);
+    wcharstring wPath(RemoteName), folderPath, fileName, wLocal(LocalName);
     if(wPath.length() == 0 || wLocal.length() == 0) return FS_FILE_OK; // just ignore this case
     std::replace(wPath.begin(), wPath.end(), u'\\', u'/');
+
+    getFolderPath(wPath, folderPath);
+    getFileName(wPath, fileName);
 
     if(gProgressProc(gPluginNumber, LocalName, RemoteName, 0) != 0) 
         return FS_FILE_USERABORT;
 
-    // make cache if cache not exists (skip this step otherwise)
-    if(!isFolderBusy(folderPath)) 
+    // get cache if cache exists otherwise make cache
+    PathFolderElement* cache = getFolderCache(folderPath);
+    if(cache == NULL) 
+        cache = addFolderToCache(folderPath);
+    
+    if(isItemInCache(cache, fileName))
     {
-        makeFolderItemsCache(folderPath);
-        addBusyFolder(folderPath);
+        if(!(CopyFlags & FS_COPYFLAGS_OVERWRITE))
+            return FS_FILE_EXISTS;
     }
 
-    /* not implemented yet */
+    // copy file from to (replaces file if already exists)
+    std::string commandString = UTF16toUTF8(
+            wcharstring((WCHAR*)u"rclone copyto ") // copy
+                .append(sanitize(wLocal)) // from
+                .append((WCHAR*)u" ")
+                .append(sanitize(wPath.substr(1))).data() // to
+        );
+    std::unique_ptr<FILE, decltype(&pclose)> pipe = executeCommand(commandString); 
+    if (!pipe) return FS_FILE_READERROR; // popen failed
+    // close popen
+    if(popenClose(&pipe, commandString) != 0) return FS_FILE_WRITEERROR;
 
     gProgressProc(gPluginNumber, LocalName, RemoteName, 100); 
     return FS_FILE_OK;
@@ -272,9 +288,8 @@ void DCPCALL FsStatusInfoW(WCHAR* RemoteDir, int InfoStartEnd, int InfoOperation
         if(InfoStartEnd == FS_STATUS_START) 
         {
             isPut = true;
-            makeFolderItemsCache(wPath);
-            busyFolders.clear();
-            addBusyFolder(wPath);
+            cacheOfFolders.clear();
+            addFolderToCache(wPath);
         }  
         if(InfoStartEnd == FS_STATUS_END) 
         {

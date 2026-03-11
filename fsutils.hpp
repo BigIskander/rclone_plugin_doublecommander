@@ -132,25 +132,26 @@ struct PathFolderElement
 
 std::vector<PathFolderElement> cacheOfFolders;
 
-void addBusyFolder(wcharstring folder) 
+void getFolderPath(wcharstring wPath, wcharstring& folderPath)
 {
-    if(folder.length() == 0) return;
-    busyFolders.push_back(folder);
+    if(wPath.length() == 0) {
+        folderPath = (WCHAR*)u"/";
+        return;
+    }
+    size_t nPos = wPath.find_last_of((WCHAR*)u"/");
+    folderPath = wPath.substr(0, nPos);
+    if(folderPath == (WCHAR*)u"") folderPath = (WCHAR*)u"/";
 }
 
-bool isFolderBusy(wcharstring folder)
+void getFileName(wcharstring wPath, wcharstring& fileName)
 {
-    if(folder.length() == 0) return false;
-    auto it = std::find_if(
-        busyFolders.begin(), 
-        busyFolders.end(), 
-        [folder](const wcharstring& item) 
-        {
-            return item == folder;
-        }
-    );
-    if(it == busyFolders.end()) return false;
-    return true;
+    if(wPath.length() == 0) {
+        fileName = (WCHAR*)u"";
+        return;
+    }
+    size_t nPos = wPath.find_last_of((WCHAR*)u"/");
+    if(nPos == std::string::npos) nPos = -1; // can crash the app if unchecked
+    fileName = wPath.substr(nPos + 1);
 }
 
 PathFolderElement* getFolderCache(wcharstring folder) 
@@ -168,21 +169,36 @@ PathFolderElement* getFolderCache(wcharstring folder)
     return &(*it);
 }
 
-void makeFolderItemsCache(wcharstring folderPath) {
-    if(folderPath.length() == 0) return;
-    if(folderPath == (WCHAR*)u"/") return;
+PathFolderElement* addFolderToCache(wcharstring folderPath) {
+    if(folderPath.length() == 0) return NULL;
+    if(folderPath == (WCHAR*)u"/") return NULL;
     // request list of items in folder as vector
     std::string commandString = UTF16toUTF8(
             wcharstring((WCHAR*)u"rclone lsf ").append(sanitize(folderPath.substr(1))).data()
         );
     std::vector<wcharstring> resultVector;
-    if(!executeCommandAndReturnVector(commandString, resultVector)) return;
+    if(!executeCommandAndReturnVector(commandString, resultVector)) return NULL;
 
-    
+    // add new element to cache and return reference
+    PathFolderElement newCache;
+    newCache.path = folderPath;
+    newCache.elementsCache = resultVector;
+    cacheOfFolders.push_back(newCache);
+    return &(cacheOfFolders.back());
+}
 
-    PathFolderElement* folderCache = getFolderCache(folderPath);
-
-    /* not implemented yet */
+bool isItemInCache(PathFolderElement *cache, wcharstring itemPath)
+{
+    if(cache == NULL) return false;
+    auto it = std::find_if(
+        cache->elementsCache.begin(),
+        cache->elementsCache.end(),
+        [itemPath](wcharstring &path) {
+            return itemPath == path;
+        }
+    );
+    if(it == cache->elementsCache.end()) return false;
+    else return true;
 }
 
 #endif
