@@ -30,14 +30,9 @@ License along with this library; if not, write to the Free Software
 #include "fsplugin.h"
 #include "utils.hpp"
 #include "json.hpp"
+#include "fsutils.hpp"
 
 #define _plugin_name "Rclone"
-
-int gPluginNumber;
-tProgressProcW gProgressProc = NULL;
-tLogProcW gLogProc = NULL;
-tRequestProcW gRequestProc = NULL;
-tCryptProcW gCryptProc = NULL;
 
 int DCPCALL FsInitW(int PluginNr, tProgressProcW pProgressProc, tLogProcW pLogProc, tRequestProcW pRequestProc) 
 {
@@ -51,128 +46,6 @@ int DCPCALL FsInitW(int PluginNr, tProgressProcW pProgressProc, tLogProcW pLogPr
 
 bool isInit = false;
 bool isPut = false;
-
-wcharstring sanitize(wcharstring value) 
-{
-    // escape special characters https://www.gnu.org/software/bash/manual/html_node/Double-Quotes.html
-    wcharstring sanitizedValue = (WCHAR*)u"\"";
-    for(int i = 0; i < value.size(); i++) {
-        if(
-            value.at(i) == (WCHAR)u'$' || value.at(i) == (WCHAR)u'`' || 
-            value.at(i) == (WCHAR)u'\\' || value.at(i) == (WCHAR)u'!'
-        ) {
-            sanitizedValue.push_back((WCHAR)u'\\');
-        }
-        sanitizedValue.push_back(value.at(i));
-    }
-    sanitizedValue.push_back((WCHAR)u'"');
-    return sanitizedValue;
-}
-
-// execute shell command and return stdout pipe
-std::unique_ptr<FILE, decltype(&pclose)> executeCommand(std::string commandString)
-{
-    const char* command = commandString.c_str();
-    std::unique_ptr<FILE, decltype(&pclose)> pipe(popen(command, "r"), pclose);
-    return pipe;
-}
-
-void setEnvVariables()
-{
-#ifdef __APPLE__
-    // source from ~/.zprofile file and get $PATH env variable
-    std::string commandString = "source ~/.zprofile > /dev/null 2>&1; echo $PATH";
-    std::unique_ptr<FILE, decltype(&pclose)> pipe = executeCommand(commandString);
-    if (!pipe) {
-        gLogProc(gPluginNumber, MSGTYPE_IMPORTANTERROR, (WCHAR*)u"C++ popen() failed.");
-        return; // popen failed
-    }
-    // Read the output line by line into the buffer
-    std::array<char, 128> buffer;
-    std::string resultString;
-    while (fgets(buffer.data(), buffer.size(), pipe.get()) != nullptr) {
-        resultString += buffer.data();
-    }
-    // close popen
-    int status = pclose(pipe.release());
-    if(status != 0) {
-        // if error occured
-        gLogProc(gPluginNumber, MSGTYPE_IMPORTANTERROR, 
-            (WCHAR*) wcharstring((WCHAR*)u"Command (")
-                .append(UTF8toUTF16(commandString))
-                .append((WCHAR*)u") exited with status ")
-                .append(int_to_wcharstring(status)).data()
-        );
-        return;
-    }
-    // set $PATH env variable
-    status = setenv("PATH", resultString.c_str(), 1);
-    if(status != 0) {
-        gLogProc(gPluginNumber, MSGTYPE_IMPORTANTERROR, (WCHAR*)u"Failed to set PATH env variable.");
-        return;
-    }
-    gLogProc(gPluginNumber, MSGTYPE_DETAILS, (WCHAR*)u"Set PATH env variable.");
-#endif
-    return;
-}
-
-// variables and function to manage cache
-std::vector<wcharstring> busyFolders;
-
-struct PathFolderElement
-{
-    wcharstring path;
-    std::vector<wcharstring> elementsCache;
-};
-
-std::vector<PathFolderElement> cacheOfFolders;
-
-void addBusyFolder(wcharstring folder) 
-{
-    if(folder.length() == 0) return;
-    busyFolders.push_back(folder);
-}
-
-bool isFolderBusy(wcharstring folder)
-{
-    if(folder.length() == 0) return false;
-    auto it = std::find_if(
-        busyFolders.begin(), 
-        busyFolders.end(), 
-        [folder](const wcharstring& item) 
-        {
-            return item == folder;
-        }
-    );
-    if(it == busyFolders.end()) return false;
-    return true;
-}
-
-PathFolderElement* getFolderCache(wcharstring folder) 
-{
-    if(folder.length() == 0) return NULL;
-    auto it = std::find_if(
-        cacheOfFolders.begin(),
-        cacheOfFolders.end(),
-        [folder](const wcharstring& item)
-        {
-            return item == folder;
-        }
-    );
-    if(it == cacheOfFolders.end()) return NULL;
-    return &(*it);
-}
-
-void makeFolderItemsCache(wcharstring folderPath) {
-    if(folderPath.length() == 0) return;
-    // get list of files
-
-    //
-
-    PathFolderElement* folderCache = getFolderCache(folderPath);
-
-    /* not implemented yet */
-}
 
 HANDLE DCPCALL FsFindFirstW(WCHAR* Path, WIN32_FIND_DATAW *FindData)
 {
@@ -205,31 +78,7 @@ HANDLE DCPCALL FsFindFirstW(WCHAR* Path, WIN32_FIND_DATAW *FindData)
         // gLogProc(gPluginNumber, MSGTYPE_CONNECT, (WCHAR*)u"123");
         // request list of configured storages (available remotes) from rclone's config 
         std::string commandString("rclone listremotes");
-        std::unique_ptr<FILE, decltype(&pclose)> pipe = executeCommand(commandString);
-        
-        if (!pipe) {
-            gLogProc(gPluginNumber, MSGTYPE_IMPORTANTERROR, (WCHAR*)u"C++ popen() failed.");
-            return (HANDLE)-1; // popen failed
-        }
-
-        // Read the output line by line into the buffer
-        while (fgets(buffer.data(), buffer.size(), pipe.get()) != nullptr) {
-            wcharstring itemName = UTF8toUTF16(buffer.data());
-            if(std::isspace(itemName.at(itemName.size() - 1))) // delete last element if it is space
-                itemName = itemName.substr(0, itemName.size() - 1);
-            resultVector.push_back(itemName);
-        }
-
-        // close popen
-        int status = pclose(pipe.release());
-        if(status != 0) {
-            // if error occured
-            gLogProc(gPluginNumber, MSGTYPE_IMPORTANTERROR, 
-                (WCHAR*) wcharstring((WCHAR*)u"Command (rclone listremotes) exited with status ")
-                    .append(int_to_wcharstring(status)).data()
-            );
-            return (HANDLE)-1;
-        }
+        if(!executeCommandAndReturnVector(commandString, resultVector)) return (HANDLE)-1;
 
         pRes = new tResources;
         pRes->nCount = 0;
@@ -255,30 +104,7 @@ HANDLE DCPCALL FsFindFirstW(WCHAR* Path, WIN32_FIND_DATAW *FindData)
         std::string commandString = UTF16toUTF8(
                 wcharstring((WCHAR*)u"rclone lsjson ").append(sanitize(wPath.substr(1))).data()
             );
-        std::unique_ptr<FILE, decltype(&pclose)> pipe = executeCommand(commandString);
-        
-        if (!pipe) {
-            gLogProc(gPluginNumber, MSGTYPE_IMPORTANTERROR, (WCHAR*)u"C++ popen() failed.");
-            return (HANDLE)-1; // popen failed
-        }
-        
-        // Read the output line by line into the buffer
-        while (fgets(buffer.data(), buffer.size(), pipe.get()) != nullptr) {
-            resultString += buffer.data();
-        }
-
-        // close popen
-        int status = pclose(pipe.release());
-        if(status != 0) {
-            // if error occured
-            gLogProc(gPluginNumber, MSGTYPE_IMPORTANTERROR, 
-                (WCHAR*) wcharstring((WCHAR*)u"Command (")
-                    .append(UTF8toUTF16(commandString))
-                    .append((WCHAR*)u") exited with status ")
-                    .append(int_to_wcharstring(status)).data()
-            );
-            return (HANDLE)-1;
-        }
+        if(!executeCommandAndReturnString(commandString, resultString)) return (HANDLE)-1;
 
         try
         {
@@ -391,24 +217,9 @@ int DCPCALL FsGetFileW(WCHAR* RemoteName, WCHAR* LocalName, int CopyFlags, Remot
                 .append(sanitize(wLocal)).data() // to
         );
     std::unique_ptr<FILE, decltype(&pclose)> pipe = executeCommand(commandString); 
-
-    if (!pipe) {
-        gLogProc(gPluginNumber, MSGTYPE_IMPORTANTERROR, (WCHAR*)u"C++ popen() failed.");
-        return FS_FILE_READERROR; // popen failed
-    }
-
+    if (!pipe) return FS_FILE_READERROR; // popen failed
     // close popen
-    int status = pclose(pipe.release());
-    if(status != 0) {
-        // if error occured
-        gLogProc(gPluginNumber, MSGTYPE_IMPORTANTERROR, 
-            (WCHAR*) wcharstring((WCHAR*)u"Command (")
-                .append(UTF8toUTF16(commandString))
-                .append((WCHAR*)u") exited with status ")
-                .append(int_to_wcharstring(status)).data()
-        );
-        return FS_FILE_WRITEERROR;
-    }
+    if(popenClose(&pipe, commandString) != 0) return FS_FILE_WRITEERROR;
 
     gProgressProc(gPluginNumber, RemoteName, LocalName, 100);
     return FS_FILE_OK;
