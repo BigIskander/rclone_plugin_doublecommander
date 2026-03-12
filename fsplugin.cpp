@@ -76,7 +76,7 @@ HANDLE DCPCALL FsFindFirstW(WCHAR* Path, WIN32_FIND_DATAW *FindData)
     std::string resultString;
 
     if(wPath.length() == 1) { // root folder of plugin
-        gLogProc(gPluginNumber, MSGTYPE_CONNECT, (WCHAR*)u"123");
+        // gLogProc(gPluginNumber, MSGTYPE_CONNECT, (WCHAR*)u"123");
         // request list of configured storages (available remotes) from rclone's config 
         std::string commandString("rclone listremotes");
         if(!executeCommandAndReturnVector(commandString, resultVector)) return (HANDLE)-1;
@@ -334,7 +334,7 @@ int DCPCALL FsRenMovFileW(WCHAR* OldName, WCHAR* NewName, BOOL Move, BOOL OverWr
         );
     } else {
         commandString = UTF16toUTF8(
-            wcharstring((WCHAR*)u"rclone copyto ") // move
+            wcharstring((WCHAR*)u"rclone copyto ") // copy
                 .append(sanitize(wPathOld.substr(1))) // from
                 .append((WCHAR*)u" ")
                 .append(sanitize(wPathNew.substr(1))).data() // to
@@ -366,6 +366,60 @@ BOOL DCPCALL FsDeleteFileW(WCHAR* RemoteName)
     // delete file
     std::string commandString = UTF16toUTF8(
         wcharstring((WCHAR*)u"rclone deletefile ")
+            .append(sanitize(wPath.substr(1))).data()
+    );
+    std::unique_ptr<FILE, decltype(&pclose)> pipe = executeCommand(commandString); 
+    if (!pipe) return false; // popen failed
+    // close popen
+    if(popenClose(&pipe, commandString) != 0) return false;
+
+    return true;
+}
+
+BOOL DCPCALL FsRemoveDirW(WCHAR* RemoteName)
+{
+    wcharstring wPath(RemoteName), fileName;
+    if(wPath.length() == 0) return true; // just ignore this case
+    std::replace(wPath.begin(), wPath.end(), u'\\', u'/');
+
+    getFileName(wPath, fileName);
+
+    // no delete folder if it is root folder of plugin
+    if(wPath == (WCHAR*)u"/")
+        return false;
+    if(wPath == wcharstring((WCHAR*)u"/").append(fileName))
+        return false;
+
+    // delete empty folder
+    std::string commandString = UTF16toUTF8(
+        wcharstring((WCHAR*)u"rclone rmdir ")
+            .append(sanitize(wPath.substr(1))).data()
+    );
+    std::unique_ptr<FILE, decltype(&pclose)> pipe = executeCommand(commandString); 
+    if (!pipe) return false; // popen failed
+    // close popen
+    if(popenClose(&pipe, commandString) != 0) return false;
+
+    return true;
+}
+
+BOOL DCPCALL FsMkDirW(WCHAR* Path)
+{
+    wcharstring wPath(Path), fileName;
+    if(wPath.length() == 0) return true; // just ignore this case
+    std::replace(wPath.begin(), wPath.end(), u'\\', u'/');
+
+    getFileName(wPath, fileName);
+
+    // cannot create new folder if it is root folder of plugin
+    if(wPath == (WCHAR*)u"/")
+        return false;
+    if(wPath == wcharstring((WCHAR*)u"/").append(fileName))
+        return false;
+
+    // create new folder
+    std::string commandString = UTF16toUTF8(
+        wcharstring((WCHAR*)u"rclone mkdir ")
             .append(sanitize(wPath.substr(1))).data()
     );
     std::unique_ptr<FILE, decltype(&pclose)> pipe = executeCommand(commandString); 
