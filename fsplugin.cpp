@@ -34,8 +34,9 @@ License along with this library; if not, write to the Free Software
 
 #define _plugin_name "Rclone"
 
-int DCPCALL FsInitW(int PluginNr, tProgressProcW pProgressProc, tLogProcW pLogProc, tRequestProcW pRequestProc) 
-{
+int DCPCALL FsInitW(
+    int PluginNr, tProgressProcW pProgressProc, tLogProcW pLogProc, tRequestProcW pRequestProc
+) {
     gProgressProc = pProgressProc;
     gLogProc = pLogProc;
     gRequestProc = pRequestProc;
@@ -111,9 +112,13 @@ HANDLE DCPCALL FsFindFirstW(WCHAR* Path, WIN32_FIND_DATAW *FindData)
             // parse Json string and convert to vector of individual items
             nlohmann::json resultJson = nlohmann::json::parse(resultString);
             std::vector<nlohmann::json> resultJsonVector;
-            std::for_each(resultJson.begin(), resultJson.end(), [&resultJsonVector](nlohmann::json &resultLine) {
-                resultJsonVector.push_back(resultLine);
-            });
+            std::for_each(
+                resultJson.begin(), 
+                resultJson.end(), 
+                [&resultJsonVector](nlohmann::json &resultLine) {
+                    resultJsonVector.push_back(resultLine);
+                }
+            );
 
             pRes = new tResources;
             pRes->nCount = 0;
@@ -133,8 +138,10 @@ HANDLE DCPCALL FsFindFirstW(WCHAR* Path, WIN32_FIND_DATAW *FindData)
                 if(resultJsonVector[i]["IsDir"])
                     pRes->resource_array[i].dwFileAttributes = FILE_ATTRIBUTE_DIRECTORY;
                 if(resultJsonVector[i]["Size"] != -1) {
-                    pRes->resource_array[i].nFileSizeLow = static_cast<DWORD>((uint64_t)resultJsonVector[i]["Size"] & 0xFFFFFFFF);
-                    pRes->resource_array[i].nFileSizeHigh = static_cast<DWORD>((uint64_t)resultJsonVector[i]["Size"] >> 32);
+                    pRes->resource_array[i].nFileSizeLow = 
+                        static_cast<DWORD>((uint64_t)resultJsonVector[i]["Size"] & 0xFFFFFFFF);
+                    pRes->resource_array[i].nFileSizeHigh = 
+                        static_cast<DWORD>((uint64_t)resultJsonVector[i]["Size"] >> 32);
                 }
                 pRes->resource_array[i].ftLastWriteTime = get_file_time(resultJsonVector[i]["ModTime"]);
 
@@ -194,12 +201,16 @@ int DCPCALL FsGetFileW(WCHAR* RemoteName, WCHAR* LocalName, int CopyFlags, Remot
     if(CopyFlags & FS_COPYFLAGS_RESUME) // resume copy not supported
         return FS_FILE_NOTSUPPORTED;
 
-    wcharstring wPath(RemoteName), deviceName, storageName, internalPath, wLocal(LocalName);
+    wcharstring wPath(RemoteName), fileName, wLocal(LocalName);
     if(wPath.length() == 0 || wLocal.length() == 0) return FS_FILE_OK; // just ignore this case
     std::replace(wPath.begin(), wPath.end(), u'\\', u'/');
 
     if(wPath == (WCHAR*)u"/")
         return FS_FILE_NOTSUPPORTED;
+
+    getFileName(wPath, fileName);
+    if(wPath == wcharstring((WCHAR*)u"/").append(fileName))
+        return FS_FILE_NOTSUPPORTED; // cannot copy file from root folder of plugin
 
     // do not copy if file exists and no overwrite flag is set
     BOOL isFileExists = file_exists(UTF16toUTF8(LocalName));
@@ -238,7 +249,13 @@ int DCPCALL FsPutFileW(WCHAR* LocalName, WCHAR* RemoteName, int CopyFlags) {
     if(wPath.length() == 0 || wLocal.length() == 0) return FS_FILE_OK; // just ignore this case
     std::replace(wPath.begin(), wPath.end(), u'\\', u'/');
 
+    if(wPath == (WCHAR*)u"/")
+        return FS_FILE_NOTSUPPORTED;
+
     getFolderPath(wPath, folderPath);
+    if(folderPath == (WCHAR*)u"/")
+        return FS_FILE_NOTSUPPORTED; // cannot copy to root folder of plugin 
+
     getFileName(wPath, fileName);
 
     if(gProgressProc(gPluginNumber, LocalName, RemoteName, 0) != 0) 
