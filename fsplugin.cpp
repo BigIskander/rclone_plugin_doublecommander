@@ -491,3 +491,25 @@ void DCPCALL FsStatusInfoW(WCHAR* RemoteDir, int InfoStartEnd, int InfoOperation
         }
     }
 }
+
+int DCPCALL FsExecuteFileW(HWND MainWin, WCHAR* RemoteName, WCHAR* Verb)
+{
+    wcharstring wPath(RemoteName), wVerb(Verb), fileName;
+    if(wVerb != wcharstring((WCHAR*)u"open")) return FS_EXEC_OK;
+    if(wPath.length() == 0) return FS_EXEC_OK;
+    std::replace(wPath.begin(), wPath.end(), u'\\', u'/');
+    getFileName(wPath, fileName);
+    if(wPath == wcharstring((WCHAR*)u"/")) return FS_EXEC_OK;
+    if(wPath == wcharstring((WCHAR*)u"/").append(fileName)) return FS_EXEC_OK;
+    if(gRequestProc(
+        gPluginNumber, 
+        RT_MsgYesNo, 
+        NULL, 
+        (WCHAR*)wcharstring((WCHAR*)u"File \"").append(fileName)
+            .append((WCHAR*)u"\" will be copied to temporary folder in your computer and opened. \n")
+            .append((WCHAR*)u"Continue?").data(), 
+        NULL, 
+        0)
+    ) return FS_EXEC_YOURSELF;
+    return FS_EXEC_OK;
+}
