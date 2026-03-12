@@ -405,7 +405,7 @@ BOOL DCPCALL FsRemoveDirW(WCHAR* RemoteName)
 
 BOOL DCPCALL FsMkDirW(WCHAR* Path)
 {
-    wcharstring wPath(Path), fileName;
+    wcharstring wPath(Path), fileName, folderPath;
     if(wPath.length() == 0) return true; // just ignore this case
     std::replace(wPath.begin(), wPath.end(), u'\\', u'/');
 
@@ -416,6 +416,15 @@ BOOL DCPCALL FsMkDirW(WCHAR* Path)
         return false;
     if(wPath == wcharstring((WCHAR*)u"/").append(fileName))
         return false;
+
+    // get cache if cache exists otherwise make cache
+    getFolderPath(wPath, folderPath);
+    PathFolderElement* cache = getFolderCache(folderPath);
+    if(cache == NULL) 
+        cache = addFolderToCache(folderPath);
+        
+    if(isItemInCache(cache, fileName))
+        return false; // item with this path already exists
 
     // create new folder
     std::string commandString = UTF16toUTF8(
@@ -469,6 +478,16 @@ void DCPCALL FsStatusInfoW(WCHAR* RemoteDir, int InfoStartEnd, int InfoOperation
         if(InfoStartEnd == FS_STATUS_START) 
         {
             cacheOfFolders.clear();
+            addFolderToCache(wPath);
+        }
+    }
+    // mkdir
+    if(InfoOperation == FS_STATUS_OP_MKDIR)
+    {
+        if(InfoStartEnd == FS_STATUS_START)
+        {
+            cacheOfFolders.clear();
+            addFolderToCache(wPath);
         }
     }
 }
