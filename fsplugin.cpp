@@ -288,6 +288,67 @@ int DCPCALL FsPutFileW(WCHAR* LocalName, WCHAR* RemoteName, int CopyFlags) {
     return FS_FILE_OK;
 }
 
+int DCPCALL FsRenMovFileW(WCHAR* OldName, WCHAR* NewName, BOOL Move, BOOL OverWrite, RemoteInfoStruct* ri)
+{
+    wcharstring wPathOld(OldName), wPathNew(NewName), fileNameOld, fileNameNew, folderPathNew;
+    if(wPathOld.length() == 0 || wPathNew.length() == 0) return FS_FILE_OK; // just ignore this case
+    std::replace(wPathOld.begin(), wPathOld.end(), u'\\', u'/');
+    std::replace(wPathNew.begin(), wPathNew.end(), u'\\', u'/');
+
+    getFileName(wPathOld, fileNameOld);
+    getFileName(wPathNew, fileNameNew);
+
+    // cannot move file from or to root folder of plugin
+    if(wPathOld == (WCHAR*)u"/")
+        return FS_FILE_NOTSUPPORTED;
+    if(wPathNew == (WCHAR*)u"/")
+        return FS_FILE_NOTSUPPORTED;
+    if(wPathOld == wcharstring((WCHAR*)u"/").append(fileNameOld))
+        return FS_FILE_NOTSUPPORTED;
+    if(wPathNew == wcharstring((WCHAR*)u"/").append(fileNameNew))
+        return FS_FILE_NOTSUPPORTED;
+
+    if(gProgressProc(gPluginNumber, OldName, NewName, 0) != 0) 
+        return FS_FILE_USERABORT;
+
+    // get cache if cache exists otherwise make cache
+    getFolderPath(wPathNew, folderPathNew);
+    PathFolderElement* cache = getFolderCache(folderPathNew);
+    if(cache == NULL) 
+        cache = addFolderToCache(folderPathNew);
+        
+    if(isItemInCache(cache, fileNameNew))
+    {
+        if(!OverWrite)
+            return FS_FILE_EXISTS;
+    }
+
+    // move or copy file from to (replaces file if already exists)
+    std::string commandString;
+    if(Move) {
+        commandString = UTF16toUTF8(
+            wcharstring((WCHAR*)u"rclone moveto ") // move
+                .append(sanitize(wPathOld.substr(1))) // from
+                .append((WCHAR*)u" ")
+                .append(sanitize(wPathNew.substr(1))).data() // to
+        );
+    } else {
+        commandString = UTF16toUTF8(
+            wcharstring((WCHAR*)u"rclone copyto ") // move
+                .append(sanitize(wPathOld.substr(1))) // from
+                .append((WCHAR*)u" ")
+                .append(sanitize(wPathNew.substr(1))).data() // to
+        );
+    }
+    std::unique_ptr<FILE, decltype(&pclose)> pipe = executeCommand(commandString); 
+    if (!pipe) return FS_FILE_READERROR; // popen failed
+    // close popen
+    if(popenClose(&pipe, commandString) != 0) return FS_FILE_WRITEERROR;
+
+    gProgressProc(gPluginNumber, OldName, NewName, 100);
+    return FS_FILE_OK;
+}
+
 // managing cache in this function
 void DCPCALL FsStatusInfoW(WCHAR* RemoteDir, int InfoStartEnd, int InfoOperation)
 {
@@ -311,6 +372,22 @@ void DCPCALL FsStatusInfoW(WCHAR* RemoteDir, int InfoStartEnd, int InfoOperation
         if(InfoStartEnd == FS_STATUS_END) 
         {
             isPut = false;
+        }
+    }
+    // ren move file or folder
+    if(InfoOperation == FS_STATUS_OP_RENMOV_SINGLE || InfoOperation == FS_STATUS_OP_RENMOV_MULTI)
+    {
+        if(InfoStartEnd == FS_STATUS_START) 
+        {
+            cacheOfFolders.clear();
+        }
+    }
+    // rename file or folder
+    if(InfoOperation == FS_STATUS_OP_ATTRIB)
+    {
+        if(InfoStartEnd == FS_STATUS_START) 
+        {
+            cacheOfFolders.clear();
         }
     }
 }
