@@ -20,6 +20,13 @@ License along with this library; if not, write to the Free Software
         Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301 USA
 */
 
+// used to compile in Windows
+#if defined(_WIN32) || defined(_WIN64)
+#include <windows.h>
+#define popen _popen
+#define pclose _pclose 
+#endif
+
 #include <stdio.h>
 #include <cstring>
 #include <string>
