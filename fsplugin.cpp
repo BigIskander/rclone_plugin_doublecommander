@@ -41,7 +41,7 @@ License along with this library; if not, write to the Free Software
 
 #define _plugin_name "Rclone"
 
-int DCPCALL FsInitW(
+LIBRARY_API int DCPCALL FsInitW(
     int PluginNr, tProgressProcW pProgressProc, tLogProcW pLogProc, tRequestProcW pRequestProc
 ) {
     gProgressProc = pProgressProc;
@@ -55,7 +55,7 @@ int DCPCALL FsInitW(
 bool isInit = false;
 bool isPut = false;
 
-HANDLE DCPCALL FsFindFirstW(WCHAR* Path, WIN32_FIND_DATAW *FindData)
+LIBRARY_API HANDLE DCPCALL FsFindFirstW(WCHAR* Path, WIN32_FIND_DATAW *FindData)
 {
     pResources pRes = NULL;
 
@@ -174,7 +174,7 @@ HANDLE DCPCALL FsFindFirstW(WCHAR* Path, WIN32_FIND_DATAW *FindData)
     return (HANDLE) pRes;
 }
 
-BOOL DCPCALL FsFindNextW(HANDLE Hdl, WIN32_FIND_DATAW *FindData)
+LIBRARY_API BOOL DCPCALL FsFindNextW(HANDLE Hdl, WIN32_FIND_DATAW *FindData)
 {
     pResources pRes = (pResources) Hdl;
 
@@ -192,18 +192,18 @@ BOOL DCPCALL FsFindNextW(HANDLE Hdl, WIN32_FIND_DATAW *FindData)
     }
 }
 
-int DCPCALL FsFindClose(HANDLE Hdl) 
+LIBRARY_API int DCPCALL FsFindClose(HANDLE Hdl) 
 {
     // this function is not even called
     return 0;
 }
 
-void DCPCALL FsGetDefRootName(char* DefRootName, int maxlen)
+LIBRARY_API void DCPCALL FsGetDefRootName(char* DefRootName, int maxlen)
 {
     strncpy(DefRootName, _plugin_name, maxlen);
 }
 
-int DCPCALL FsGetFileW(WCHAR* RemoteName, WCHAR* LocalName, int CopyFlags, RemoteInfoStruct* ri)
+LIBRARY_API int DCPCALL FsGetFileW(WCHAR* RemoteName, WCHAR* LocalName, int CopyFlags, RemoteInfoStruct* ri)
 {
     if(CopyFlags & FS_COPYFLAGS_RESUME) // resume copy not supported
         return FS_FILE_NOTSUPPORTED;
@@ -243,7 +243,7 @@ int DCPCALL FsGetFileW(WCHAR* RemoteName, WCHAR* LocalName, int CopyFlags, Remot
     return FS_FILE_OK;
 }
 
-int DCPCALL FsPutFileW(WCHAR* LocalName, WCHAR* RemoteName, int CopyFlags) {
+LIBRARY_API int DCPCALL FsPutFileW(WCHAR* LocalName, WCHAR* RemoteName, int CopyFlags) {
     if (CopyFlags & FS_COPYFLAGS_RESUME)
         return FS_FILE_NOTSUPPORTED;
 
@@ -295,7 +295,7 @@ int DCPCALL FsPutFileW(WCHAR* LocalName, WCHAR* RemoteName, int CopyFlags) {
     return FS_FILE_OK;
 }
 
-int DCPCALL FsRenMovFileW(WCHAR* OldName, WCHAR* NewName, BOOL Move, BOOL OverWrite, RemoteInfoStruct* ri)
+LIBRARY_API int DCPCALL FsRenMovFileW(WCHAR* OldName, WCHAR* NewName, BOOL Move, BOOL OverWrite, RemoteInfoStruct* ri)
 {
     wcharstring wPathOld(OldName), wPathNew(NewName), fileNameOld, fileNameNew, folderPathNew;
     if(wPathOld.length() == 0 || wPathNew.length() == 0) return FS_FILE_OK; // just ignore this case
@@ -356,7 +356,7 @@ int DCPCALL FsRenMovFileW(WCHAR* OldName, WCHAR* NewName, BOOL Move, BOOL OverWr
     return FS_FILE_OK;
 }
 
-BOOL DCPCALL FsDeleteFileW(WCHAR* RemoteName)
+LIBRARY_API BOOL DCPCALL FsDeleteFileW(WCHAR* RemoteName)
 {
     wcharstring wPath(RemoteName), fileName;
     if(wPath.length() == 0) return true; // just ignore this case
@@ -383,7 +383,7 @@ BOOL DCPCALL FsDeleteFileW(WCHAR* RemoteName)
     return true;
 }
 
-BOOL DCPCALL FsRemoveDirW(WCHAR* RemoteName)
+LIBRARY_API BOOL DCPCALL FsRemoveDirW(WCHAR* RemoteName)
 {
     wcharstring wPath(RemoteName), fileName;
     if(wPath.length() == 0) return true; // just ignore this case
@@ -410,7 +410,7 @@ BOOL DCPCALL FsRemoveDirW(WCHAR* RemoteName)
     return true;
 }
 
-BOOL DCPCALL FsMkDirW(WCHAR* Path)
+LIBRARY_API BOOL DCPCALL FsMkDirW(WCHAR* Path)
 {
     wcharstring wPath(Path), fileName, folderPath;
     if(wPath.length() == 0) return true; // just ignore this case
@@ -447,7 +447,7 @@ BOOL DCPCALL FsMkDirW(WCHAR* Path)
 }
 
 // managing cache in this function
-void DCPCALL FsStatusInfoW(WCHAR* RemoteDir, int InfoStartEnd, int InfoOperation)
+LIBRARY_API void DCPCALL FsStatusInfoW(WCHAR* RemoteDir, int InfoStartEnd, int InfoOperation)
 {
     wcharstring wPath(RemoteDir);
     // fix for wierd issue when Double Commander sends RemoteDir as empty (basic_string)
@@ -499,7 +499,7 @@ void DCPCALL FsStatusInfoW(WCHAR* RemoteDir, int InfoStartEnd, int InfoOperation
     }
 }
 
-int DCPCALL FsExecuteFileW(HWND MainWin, WCHAR* RemoteName, WCHAR* Verb)
+LIBRARY_API int DCPCALL FsExecuteFileW(HWND MainWin, WCHAR* RemoteName, WCHAR* Verb)
 {
     wcharstring wPath(RemoteName), wVerb(Verb), fileName;
     if(wVerb != wcharstring((WCHAR*)u"open")) return FS_EXEC_OK;

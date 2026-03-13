@@ -209,58 +209,58 @@ typedef int (DCPCALL *tCryptProcW)(int PluginNr,int CryptoNr,int Mode,
 			  WCHAR* ConnectionName,WCHAR* Password,int maxlen);
 
 // Function prototypes
-int DCPCALL FsInit(int PluginNr,tProgressProc pProgressProc,
+LIBRARY_API int DCPCALL FsInit(int PluginNr,tProgressProc pProgressProc,
                      tLogProc pLogProc,tRequestProc pRequestProc);
-int DCPCALL FsInitW(int PluginNr,tProgressProcW pProgressProcW,
+LIBRARY_API int DCPCALL FsInitW(int PluginNr,tProgressProcW pProgressProcW,
                      tLogProcW pLogProcW,tRequestProcW pRequestProcW);
-void DCPCALL FsSetCryptCallback(tCryptProc pCryptProc,int CryptoNr,int Flags);
-void DCPCALL FsSetCryptCallbackW(tCryptProcW pCryptProcW,int CryptoNr,int Flags);
-HANDLE DCPCALL FsFindFirst(char* Path,WIN32_FIND_DATAA *FindData);
-HANDLE DCPCALL FsFindFirstW(WCHAR* Path,WIN32_FIND_DATAW *FindData);
+LIBRARY_API void DCPCALL FsSetCryptCallback(tCryptProc pCryptProc,int CryptoNr,int Flags);
+LIBRARY_API void DCPCALL FsSetCryptCallbackW(tCryptProcW pCryptProcW,int CryptoNr,int Flags);
+LIBRARY_API HANDLE DCPCALL FsFindFirst(char* Path,WIN32_FIND_DATAA *FindData);
+LIBRARY_API HANDLE DCPCALL FsFindFirstW(WCHAR* Path,WIN32_FIND_DATAW *FindData);
 
-BOOL DCPCALL FsFindNext(HANDLE Hdl,WIN32_FIND_DATAA *FindData);
-BOOL DCPCALL FsFindNextW(HANDLE Hdl,WIN32_FIND_DATAW *FindData);
-int DCPCALL FsFindClose(HANDLE Hdl);
-BOOL DCPCALL FsMkDir(char* Path);
-BOOL DCPCALL FsMkDirW(WCHAR* Path);
-int DCPCALL FsExecuteFile(HWND MainWin,char* RemoteName,char* Verb);
-int DCPCALL FsExecuteFileW(HWND MainWin,WCHAR* RemoteName,WCHAR* Verb);
-int DCPCALL FsRenMovFile(char* OldName,char* NewName,BOOL Move,
+LIBRARY_API BOOL DCPCALL FsFindNext(HANDLE Hdl,WIN32_FIND_DATAA *FindData);
+LIBRARY_API BOOL DCPCALL FsFindNextW(HANDLE Hdl,WIN32_FIND_DATAW *FindData);
+LIBRARY_API int DCPCALL FsFindClose(HANDLE Hdl);
+LIBRARY_API BOOL DCPCALL FsMkDir(char* Path);
+LIBRARY_API BOOL DCPCALL FsMkDirW(WCHAR* Path);
+LIBRARY_API int DCPCALL FsExecuteFile(HWND MainWin,char* RemoteName,char* Verb);
+LIBRARY_API int DCPCALL FsExecuteFileW(HWND MainWin,WCHAR* RemoteName,WCHAR* Verb);
+LIBRARY_API int DCPCALL FsRenMovFile(char* OldName,char* NewName,BOOL Move,
                            BOOL OverWrite,RemoteInfoStruct* ri);
-int DCPCALL FsRenMovFileW(WCHAR* OldName,WCHAR* NewName,BOOL Move,
+LIBRARY_API int DCPCALL FsRenMovFileW(WCHAR* OldName,WCHAR* NewName,BOOL Move,
                            BOOL OverWrite,RemoteInfoStruct* ri);
-int DCPCALL FsGetFile(char* RemoteName,char* LocalName,int CopyFlags,
+LIBRARY_API int DCPCALL FsGetFile(char* RemoteName,char* LocalName,int CopyFlags,
                         RemoteInfoStruct* ri);
 
-int DCPCALL FsGetFileW(WCHAR* RemoteName,WCHAR* LocalName,int CopyFlags,
+LIBRARY_API int DCPCALL FsGetFileW(WCHAR* RemoteName,WCHAR* LocalName,int CopyFlags,
                         RemoteInfoStruct* ri);
-int DCPCALL FsPutFile(char* LocalName,char* RemoteName,int CopyFlags);
-int DCPCALL FsPutFileW(WCHAR* LocalName,WCHAR* RemoteName,int CopyFlags);
-BOOL DCPCALL FsDeleteFile(char* RemoteName);
-BOOL DCPCALL FsDeleteFileW(WCHAR* RemoteName);
-BOOL DCPCALL FsRemoveDir(char* RemoteName);
-BOOL DCPCALL FsRemoveDirW(WCHAR* RemoteName);
-BOOL DCPCALL FsDisconnect(char* DisconnectRoot);
-BOOL DCPCALL FsDisconnectW(WCHAR* DisconnectRoot);
-BOOL DCPCALL FsSetAttr(char* RemoteName,int NewAttr);
-BOOL DCPCALL FsSetAttrW(WCHAR* RemoteName,int NewAttr);
-BOOL DCPCALL FsSetTime(char* RemoteName,FILETIME *CreationTime,
+LIBRARY_API int DCPCALL FsPutFile(char* LocalName,char* RemoteName,int CopyFlags);
+LIBRARY_API int DCPCALL FsPutFileW(WCHAR* LocalName,WCHAR* RemoteName,int CopyFlags);
+LIBRARY_API BOOL DCPCALL FsDeleteFile(char* RemoteName);
+LIBRARY_API BOOL DCPCALL FsDeleteFileW(WCHAR* RemoteName);
+LIBRARY_API BOOL DCPCALL FsRemoveDir(char* RemoteName);
+LIBRARY_API BOOL DCPCALL FsRemoveDirW(WCHAR* RemoteName);
+LIBRARY_API BOOL DCPCALL FsDisconnect(char* DisconnectRoot);
+LIBRARY_API BOOL DCPCALL FsDisconnectW(WCHAR* DisconnectRoot);
+LIBRARY_API BOOL DCPCALL FsSetAttr(char* RemoteName,int NewAttr);
+LIBRARY_API BOOL DCPCALL FsSetAttrW(WCHAR* RemoteName,int NewAttr);
+LIBRARY_API BOOL DCPCALL FsSetTime(char* RemoteName,FILETIME *CreationTime,
 
       FILETIME *LastAccessTime,FILETIME *LastWriteTime);
-BOOL DCPCALL FsSetTimeW(WCHAR* RemoteName,FILETIME *CreationTime,
+LIBRARY_API BOOL DCPCALL FsSetTimeW(WCHAR* RemoteName,FILETIME *CreationTime,
       FILETIME *LastAccessTime,FILETIME *LastWriteTime);
-void DCPCALL FsStatusInfo(char* RemoteDir,int InfoStartEnd,int InfoOperation);
-void DCPCALL FsStatusInfoW(WCHAR* RemoteDir,int InfoStartEnd,int InfoOperation);
-void DCPCALL FsGetDefRootName(char* DefRootName,int maxlen);
-int DCPCALL FsExtractCustomIcon(char* RemoteName,int ExtractFlags,HICON* TheIcon);
-int DCPCALL FsExtractCustomIconW(WCHAR* RemoteName,int ExtractFlags,HICON* TheIcon);
-void DCPCALL FsSetDefaultParams(FsDefaultParamStruct* dps);
+LIBRARY_API void DCPCALL FsStatusInfo(char* RemoteDir,int InfoStartEnd,int InfoOperation);
+LIBRARY_API void DCPCALL FsStatusInfoW(WCHAR* RemoteDir,int InfoStartEnd,int InfoOperation);
+LIBRARY_API void DCPCALL FsGetDefRootName(char* DefRootName,int maxlen);
+LIBRARY_API int DCPCALL FsExtractCustomIcon(char* RemoteName,int ExtractFlags,HICON* TheIcon);
+LIBRARY_API int DCPCALL FsExtractCustomIconW(WCHAR* RemoteName,int ExtractFlags,HICON* TheIcon);
+LIBRARY_API void DCPCALL FsSetDefaultParams(FsDefaultParamStruct* dps);
 
-int DCPCALL FsGetPreviewBitmap(char* RemoteName,int width,int height,HBITMAP* ReturnedBitmap);
-int DCPCALL FsGetPreviewBitmapW(WCHAR* RemoteName,int width,int height,HBITMAP* ReturnedBitmap);
-BOOL DCPCALL FsLinksToLocalFiles(void);
-BOOL DCPCALL FsGetLocalName(char* RemoteName,int maxlen);
-BOOL DCPCALL FsGetLocalNameW(WCHAR* RemoteName,int maxlen);
+LIBRARY_API int DCPCALL FsGetPreviewBitmap(char* RemoteName,int width,int height,HBITMAP* ReturnedBitmap);
+LIBRARY_API int DCPCALL FsGetPreviewBitmapW(WCHAR* RemoteName,int width,int height,HBITMAP* ReturnedBitmap);
+LIBRARY_API BOOL DCPCALL FsLinksToLocalFiles(void);
+LIBRARY_API BOOL DCPCALL FsGetLocalName(char* RemoteName,int maxlen);
+LIBRARY_API BOOL DCPCALL FsGetLocalNameW(WCHAR* RemoteName,int maxlen);
 
 #ifdef __cplusplus /* If this is a C++ compiler, end C linkage */
 }

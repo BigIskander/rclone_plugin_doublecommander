@@ -1,2 +1,5 @@
 /.DS_Store
 fsplugin.wfx64
+fsplugin.exp
+fsplugin.obj
+fsplugin.lib

@@ -72,8 +72,12 @@ typedef struct _WIN32_FIND_DATA {
 
 #if defined(_WIN32) || defined(_WIN64)
   #define DCPCALL __stdcall
+  #define LIBRARY_API __declspec(dllexport) 
+  // modification to compile the plugin in windows 
+  // https://stackoverflow.com/questions/538134/exporting-functions-from-a-dll-with-dllexport
 #else
   #define DCPCALL __cdecl
+  #define LIBRARY_API
 #endif
 
 #endif
