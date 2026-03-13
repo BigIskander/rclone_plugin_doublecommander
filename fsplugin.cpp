@@ -295,8 +295,9 @@ LIBRARY_API int DCPCALL FsPutFileW(WCHAR* LocalName, WCHAR* RemoteName, int Copy
     return FS_FILE_OK;
 }
 
-LIBRARY_API int DCPCALL FsRenMovFileW(WCHAR* OldName, WCHAR* NewName, BOOL Move, BOOL OverWrite, RemoteInfoStruct* ri)
-{
+LIBRARY_API int DCPCALL FsRenMovFileW(
+    WCHAR* OldName, WCHAR* NewName, BOOL Move, BOOL OverWrite, RemoteInfoStruct* ri
+) {
     wcharstring wPathOld(OldName), wPathNew(NewName), fileNameOld, fileNameNew, folderPathNew;
     if(wPathOld.length() == 0 || wPathNew.length() == 0) return FS_FILE_OK; // just ignore this case
     std::replace(wPathOld.begin(), wPathOld.end(), u'\\', u'/');
