@@ -11,6 +11,8 @@
   #define DCPCALL
 #endif
 
+#define LIBRARY_API
+
 #define MAX_PATH 260
 
 typedef int32_t LONG;
