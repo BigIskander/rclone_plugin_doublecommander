@@ -49,25 +49,172 @@ wcharstring sanitize(wcharstring value)
 #if  defined(_WIN32) || defined(_WIN64)
 // Windows version of functions used to interact with shell
 
-    // execute shell command and return stdout as Vector
-    bool executeCommandAndReturnVector(std::string commandString, std::vector<wcharstring> &resultVector) 
+#define BUFSIZE 4096 
+
+wchar_t rcloneExePath[MAX_PATH];
+
+    struct commandOutput
     {
-        /* not implemented yet */
-        return false;
-    }
+        HANDLE stdoutPipe;
+        HANDLE process;
+        HANDLE thread;
+        commandOutput() {
+            this->stdoutPipe = NULL;
+            this->process = NULL;
+            this->thread = NULL;
+        }
+        commandOutput(HANDLE stdoutPipe, HANDLE process, HANDLE thread) {
+            this->stdoutPipe = stdoutPipe;
+            this->process = process;
+            this->thread = thread;
+        }
+    };
+
+    // resourses used as examples
+    // https://learn.microsoft.com/en-us/windows/win32/procthread/creating-processes
+    // https://stackoverflow.com/questions/7063859/c-popen-command-without-console
+    // https://learn.microsoft.com/en-us/windows/win32/procthread/creating-a-child-process-with-redirected-input-and-output
     
-    // execute shell command and return stdout as text
-    bool executeCommandAndReturnString(std::string commandString, std::string &resultString)
+
+    bool executeCommand(std::string command, commandOutput &output, bool isCmd)
+    { 
+        // Set the bInheritHandle flag so pipe handles are inherited.
+        SECURITY_ATTRIBUTES sa;
+        sa.nLength = sizeof(SECURITY_ATTRIBUTES);
+        sa.bInheritHandle = TRUE;
+        sa.lpSecurityDescriptor = NULL;
+
+        // create stdout pipe and set handle
+        HANDLE StdOutHandles[2]; 
+        if(CreatePipe(&StdOutHandles[0], &StdOutHandles[1], &sa, 0) == 0) 
+        {
+            gLogProc(gPluginNumber, MSGTYPE_IMPORTANTERROR, (WCHAR*)u"Failed to create pipe.");
+            return false;
+        }
+        if (!SetHandleInformation(StdOutHandles[0], HANDLE_FLAG_INHERIT, 0))
+        {
+            gLogProc(gPluginNumber, MSGTYPE_IMPORTANTERROR, (WCHAR*)u"Failed to set handle.");
+            return false;
+        }
+
+        // attach stdout pipe to startup info
+        STARTUPINFOW siStartInfo;
+        memset(&siStartInfo, 0, sizeof(siStartInfo));
+        siStartInfo.dwFlags |=  STARTF_USESTDHANDLES;
+        siStartInfo.hStdOutput = StdOutHandles[1];
+
+        wchar_t* exePath = rcloneExePath;
+        if(isCmd || wcslen(rcloneExePath) == 0) exePath = NULL;
+        // create process
+        PROCESS_INFORMATION piProcInfo;
+        wchar_t * commandW = const_cast<wchar_t *>(UTF8toUTF16(command).c_str());
+        
+        BOOL isProcessCreated =  CreateProcessW(
+            exePath,                                // rclone.exe or just shell
+            commandW,                               // rclone command
+            NULL,                                   // Process handle not inheritable
+            NULL,                                   // Thread handle not inheritable
+            TRUE,                                   // Set handle inheritance to ???
+            CREATE_NO_WINDOW,                       // Creation flags
+            NULL,                                   // Use parent's environment block
+            NULL,                                   // Use parent's starting directory 
+            &siStartInfo,                           // Pointer to STARTUPINFO structure
+            &piProcInfo                             // Pointer to PROCESS_INFORMATION structure
+        );
+
+        if(!isProcessCreated)
+        {
+            gLogProc(gPluginNumber, MSGTYPE_IMPORTANTERROR, (WCHAR*)u"Failed to create process.");
+            return false;
+        }
+
+        if(!CloseHandle(StdOutHandles[1]))
+        {
+            gLogProc(gPluginNumber, MSGTYPE_IMPORTANTERROR, (WCHAR*)u"Failed to close handle.");
+            return false;
+        }
+
+        output.stdoutPipe = const_cast<HANDLE>(StdOutHandles[0]);
+        output.process = const_cast<HANDLE>(piProcInfo.hProcess);
+        output.thread = const_cast<HANDLE>(piProcInfo.hThread);
+
+        return true; 
+    }
+
+    int exitProcess(commandOutput &output, std::string &commandString) {
+        // wait for process exit and get exit code
+        WaitForSingleObject(output.process, INFINITE);  // wait for process to end
+        DWORD dwExitCode = 0;
+        ::GetExitCodeProcess(output.process, &dwExitCode);
+        if(dwExitCode != 0)
+        {
+            // show message if error occured
+            gLogProc(gPluginNumber, MSGTYPE_IMPORTANTERROR, 
+                (WCHAR*) wcharstring((WCHAR*)u"Command (")
+                    .append(UTF8toUTF16(commandString))
+                    .append((WCHAR*)u") exited with status ")
+                    .append(int_to_wcharstring(dwExitCode)).data()
+            );
+        }
+        // close handles
+        CloseHandle(output.stdoutPipe); 
+        CloseHandle(output.process);
+        CloseHandle(output.thread);
+        return dwExitCode;
+    }
+
+    // execute shell command and return stdout as Vector
+    bool executeCommandAndReturnVector(std::string commandString, std::vector<wcharstring> &resultVector, bool isCmd = false) 
     {
-        /* not implemented yet */
-        return false;
+        // execute command
+        commandOutput output;
+        if(!executeCommand(commandString, output, isCmd)) return false;
+        // read from stdout
+        CHAR chBuf[BUFSIZE];
+        DWORD dwRead;
+        while(ReadFile(output.stdoutPipe, chBuf, BUFSIZE, &dwRead, NULL)) 
+        {
+            if(dwRead == 0) break;
+            std::string s(chBuf, dwRead);
+            wcharstring itemName = UTF8toUTF16(s);
+            if(std::isspace(itemName.at(itemName.size() - 1))) // delete last element if it is space
+                itemName = itemName.substr(0, itemName.size() - 1);
+            resultVector.push_back(itemName);
+        }
+        // exit process
+        if(exitProcess(output, commandString) != 0) return false;
+        return true;
+    }
+
+    // execute shell command and return stdout as text
+    bool executeCommandAndReturnString(std::string commandString, std::string &resultString, bool isCmd = false)
+    {
+        // execute command
+        commandOutput output;
+        if(!executeCommand(commandString, output, isCmd)) return false;
+        // read from stdout
+        CHAR chBuf[BUFSIZE];
+        DWORD dwRead;
+        while(ReadFile(output.stdoutPipe, chBuf, BUFSIZE, &dwRead, NULL)) 
+        {
+            if(dwRead == 0) break;
+            std::string s(chBuf, dwRead);
+            resultString += s;
+        }
+        // exit process
+        if(exitProcess(output, commandString) != 0) return false;
+        return true;
     }
 
     // execute shell command and return nothing
-    bool executeCommand2(std::string commandString) 
+    bool executeCommand2(std::string commandString, bool isCmd = false) 
     {
-        /* not implemented yet */
-        return false;
+        // execute command
+        commandOutput output;
+        if(!executeCommand(commandString, output, isCmd)) return false;
+        // exit process
+        if(exitProcess(output, commandString) != 0) return false;
+        return true;
     }
 #else
 // Linux and macOS version of functions used to interact with shell
@@ -154,6 +301,23 @@ void setEnvVariables()
         return;
     }
     gLogProc(gPluginNumber, MSGTYPE_DETAILS, (WCHAR*)u"Set PATH env variable.");
+#endif
+#if  defined(_WIN32) || defined(_WIN64)
+    std::string resultString;
+    if(!executeCommandAndReturnString("where rclone", resultString, true))
+    {
+        gLogProc(gPluginNumber, MSGTYPE_IMPORTANTERROR, (WCHAR*)u"Failed to get rclone.exe executable path from shell.");
+        return;
+    }
+    for(int i = resultString.length() - 1; i >= 1; i--) {
+        if(std::isspace(resultString.at(i))) {
+            resultString = resultString.substr(0, i - 1);
+            break;
+        }
+    }
+    wchar_t* exePath = const_cast<wchar_t *>(UTF8toUTF16(resultString).c_str());
+    memcpy(rcloneExePath, exePath, MAX_PATH);
+    gLogProc(gPluginNumber, MSGTYPE_DETAILS, (WCHAR*)u"Got path to rclone.exe executable from shell.");
 #endif
     return;
 }
