@@ -86,6 +86,16 @@ LIBRARY_API HANDLE DCPCALL FsFindFirstW(WCHAR* Path, WIN32_FIND_DATAW *FindData)
         std::string commandString("rclone listremotes");
         if(!executeCommandAndReturnVector(commandString, resultVector)) return (HANDLE)-1;
 
+#if  defined(_WIN32) || defined(_WIN64)
+        if(resultVector.size() == 0) 
+        {
+            // fix for no opening empty folders in total commander
+            // thanks to google ai https://share.google/aimode/EaWYpReZbuguuXPez
+            SetLastError(ERROR_NO_MORE_FILES);
+            return (HANDLE)-1;
+        }
+#endif
+
         pRes = new tResources;
         pRes->nCount = 0;
         pRes->resource_array.resize(resultVector.size());
@@ -124,6 +134,16 @@ LIBRARY_API HANDLE DCPCALL FsFindFirstW(WCHAR* Path, WIN32_FIND_DATAW *FindData)
                     resultJsonVector.push_back(resultLine);
                 }
             );
+
+#if  defined(_WIN32) || defined(_WIN64)
+            if(resultJsonVector.size() == 0) 
+            {
+                // fix for no opening empty folders in total commander
+                // thanks to google ai https://share.google/aimode/EaWYpReZbuguuXPez
+                SetLastError(ERROR_NO_MORE_FILES);
+                return (HANDLE)-1;
+            }
+#endif
 
             pRes = new tResources;
             pRes->nCount = 0;
