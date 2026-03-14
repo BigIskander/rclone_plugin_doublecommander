@@ -23,8 +23,6 @@ License along with this library; if not, write to the Free Software
 // used to compile in Windows
 #if defined(_WIN32) || defined(_WIN64)
 #include <windows.h>
-#define popen _popen
-#define pclose _pclose 
 #endif
 
 #include <stdio.h>
@@ -234,10 +232,7 @@ LIBRARY_API int DCPCALL FsGetFileW(WCHAR* RemoteName, WCHAR* LocalName, int Copy
                 .append((WCHAR*)u" ")
                 .append(sanitize(wLocal)).data() // to
         );
-    std::unique_ptr<FILE, decltype(&pclose)> pipe = executeCommand(commandString); 
-    if (!pipe) return FS_FILE_READERROR; // popen failed
-    // close popen
-    if(popenClose(&pipe, commandString) != 0) return FS_FILE_WRITEERROR;
+    if(!executeCommand2(commandString)) return FS_FILE_WRITEERROR;
 
     gProgressProc(gPluginNumber, RemoteName, LocalName, 100);
     return FS_FILE_OK;
@@ -286,10 +281,7 @@ LIBRARY_API int DCPCALL FsPutFileW(WCHAR* LocalName, WCHAR* RemoteName, int Copy
                 .append((WCHAR*)u" ")
                 .append(sanitize(wPath.substr(1))).data() // to
         );
-    std::unique_ptr<FILE, decltype(&pclose)> pipe = executeCommand(commandString); 
-    if (!pipe) return FS_FILE_READERROR; // popen failed
-    // close popen
-    if(popenClose(&pipe, commandString) != 0) return FS_FILE_WRITEERROR;
+    if(!executeCommand2(commandString)) return FS_FILE_WRITEERROR;
 
     gProgressProc(gPluginNumber, LocalName, RemoteName, 100); 
     return FS_FILE_OK;
@@ -348,10 +340,7 @@ LIBRARY_API int DCPCALL FsRenMovFileW(
                 .append(sanitize(wPathNew.substr(1))).data() // to
         );
     }
-    std::unique_ptr<FILE, decltype(&pclose)> pipe = executeCommand(commandString); 
-    if (!pipe) return FS_FILE_READERROR; // popen failed
-    // close popen
-    if(popenClose(&pipe, commandString) != 0) return FS_FILE_WRITEERROR;
+    if(!executeCommand2(commandString)) return FS_FILE_WRITEERROR;
 
     gProgressProc(gPluginNumber, OldName, NewName, 100);
     return FS_FILE_OK;
@@ -376,10 +365,7 @@ LIBRARY_API BOOL DCPCALL FsDeleteFileW(WCHAR* RemoteName)
         wcharstring((WCHAR*)u"rclone deletefile ")
             .append(sanitize(wPath.substr(1))).data()
     );
-    std::unique_ptr<FILE, decltype(&pclose)> pipe = executeCommand(commandString); 
-    if (!pipe) return false; // popen failed
-    // close popen
-    if(popenClose(&pipe, commandString) != 0) return false;
+    if(!executeCommand2(commandString)) return false;
 
     return true;
 }
@@ -403,10 +389,7 @@ LIBRARY_API BOOL DCPCALL FsRemoveDirW(WCHAR* RemoteName)
         wcharstring((WCHAR*)u"rclone rmdir ")
             .append(sanitize(wPath.substr(1))).data()
     );
-    std::unique_ptr<FILE, decltype(&pclose)> pipe = executeCommand(commandString); 
-    if (!pipe) return false; // popen failed
-    // close popen
-    if(popenClose(&pipe, commandString) != 0) return false;
+    if(!executeCommand2(commandString)) return false;
 
     return true;
 }
@@ -439,10 +422,7 @@ LIBRARY_API BOOL DCPCALL FsMkDirW(WCHAR* Path)
         wcharstring((WCHAR*)u"rclone mkdir ")
             .append(sanitize(wPath.substr(1))).data()
     );
-    std::unique_ptr<FILE, decltype(&pclose)> pipe = executeCommand(commandString); 
-    if (!pipe) return false; // popen failed
-    // close popen
-    if(popenClose(&pipe, commandString) != 0) return false;
+    if(!executeCommand2(commandString)) return false;
 
     return true;
 }

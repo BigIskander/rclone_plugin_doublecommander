@@ -46,62 +46,99 @@ wcharstring sanitize(wcharstring value)
     return sanitizedValue;
 }
 
-// execute shell command and return stdout pipe
-std::unique_ptr<FILE, decltype(&pclose)> executeCommand(std::string commandString)
-{
-    const char* command = commandString.c_str();
-    std::unique_ptr<FILE, decltype(&pclose)> pipe(popen(command, "r"), pclose);
-    if(!pipe) gLogProc(gPluginNumber, MSGTYPE_IMPORTANTERROR, (WCHAR*)u"C++ popen() failed.");
-    return pipe;
-}
+#if  defined(_WIN32) || defined(_WIN64)
+// Windows version of functions used to interact with shell
 
-// close shell
-bool popenClose(std::unique_ptr<FILE, decltype(&pclose)> *pipe, std::string commandString)
-{
-    // close popen
-    int status = pclose(pipe->release());
-    if(status != 0) {
-        // show message if error occured
-        gLogProc(gPluginNumber, MSGTYPE_IMPORTANTERROR, 
-            (WCHAR*) wcharstring((WCHAR*)u"Command (")
-                .append(UTF8toUTF16(commandString))
-                .append((WCHAR*)u") exited with status ")
-                .append(int_to_wcharstring(status)).data()
-        );
+    // execute shell command and return stdout as Vector
+    bool executeCommandAndReturnVector(std::string commandString, std::vector<wcharstring> &resultVector) 
+    {
+        /* not implemented yet */
+        return false;
     }
-    return status;
-}
+    
+    // execute shell command and return stdout as text
+    bool executeCommandAndReturnString(std::string commandString, std::string &resultString)
+    {
+        /* not implemented yet */
+        return false;
+    }
 
-// execute shell command and return stdout as Vector
-bool executeCommandAndReturnVector(std::string commandString, std::vector<wcharstring> &resultVector) 
-{
-    std::unique_ptr<FILE, decltype(&pclose)> pipe = executeCommand(commandString);
-    if (!pipe) return false; // popen failed
-    // Read the output line by line into the buffer
-    std::array<char, 128> buffer;
-    while (fgets(buffer.data(), buffer.size(), pipe.get()) != nullptr) {
-        wcharstring itemName = UTF8toUTF16(buffer.data());
-        if(std::isspace(itemName.at(itemName.size() - 1))) // delete last element if it is space
-            itemName = itemName.substr(0, itemName.size() - 1);
-        resultVector.push_back(itemName);
+    // execute shell command and return nothing
+    bool executeCommand2(std::string commandString) 
+    {
+        /* not implemented yet */
+        return false;
     }
-    if(popenClose(&pipe, commandString) != 0) return false;
-    return true;
-}
+#else
+// Linux and macOS version of functions used to interact with shell
 
-// execute shell command and return stdout as text
-bool executeCommandAndReturnString(std::string commandString, std::string &resultString)
-{
-    std::unique_ptr<FILE, decltype(&pclose)> pipe = executeCommand(commandString);
-    if (!pipe) return false; // popen failed
-    // Read the output line by line into the buffer
-    std::array<char, 128> buffer;
-    while (fgets(buffer.data(), buffer.size(), pipe.get()) != nullptr) {
-        resultString += buffer.data();
+    // execute shell command and return stdout pipe
+    std::unique_ptr<FILE, decltype(&pclose)> executeCommand(std::string commandString)
+    {
+        const char* command = commandString.c_str();
+        std::unique_ptr<FILE, decltype(&pclose)> pipe(popen(command, "r"), pclose);
+        if(!pipe) gLogProc(gPluginNumber, MSGTYPE_IMPORTANTERROR, (WCHAR*)u"C++ popen() failed.");
+        return pipe;
     }
-    if(popenClose(&pipe, commandString) != 0) return false;
-    return true;
-}
+
+    // close shell
+    bool popenClose(std::unique_ptr<FILE, decltype(&pclose)> *pipe, std::string commandString)
+    {
+        // close popen
+        int status = pclose(pipe->release());
+        if(status != 0) {
+            // show message if error occured
+            gLogProc(gPluginNumber, MSGTYPE_IMPORTANTERROR, 
+                (WCHAR*) wcharstring((WCHAR*)u"Command (")
+                    .append(UTF8toUTF16(commandString))
+                    .append((WCHAR*)u") exited with status ")
+                    .append(int_to_wcharstring(status)).data()
+            );
+        }
+        return status;
+    }
+
+    // execute shell command and return stdout as Vector
+    bool executeCommandAndReturnVector(std::string commandString, std::vector<wcharstring> &resultVector) 
+    {
+        std::unique_ptr<FILE, decltype(&pclose)> pipe = executeCommand(commandString);
+        if (!pipe) return false; // popen failed
+        // Read the output line by line into the buffer
+        std::array<char, 128> buffer;
+        while (fgets(buffer.data(), buffer.size(), pipe.get()) != nullptr) {
+            wcharstring itemName = UTF8toUTF16(buffer.data());
+            if(std::isspace(itemName.at(itemName.size() - 1))) // delete last element if it is space
+                itemName = itemName.substr(0, itemName.size() - 1);
+            resultVector.push_back(itemName);
+        }
+        if(popenClose(&pipe, commandString) != 0) return false;
+        return true;
+    }
+
+    // execute shell command and return stdout as text
+    bool executeCommandAndReturnString(std::string commandString, std::string &resultString)
+    {
+        std::unique_ptr<FILE, decltype(&pclose)> pipe = executeCommand(commandString);
+        if (!pipe) return false; // popen failed
+        // Read the output line by line into the buffer
+        std::array<char, 128> buffer;
+        while (fgets(buffer.data(), buffer.size(), pipe.get()) != nullptr) {
+            resultString += buffer.data();
+        }
+        if(popenClose(&pipe, commandString) != 0) return false;
+        return true;
+    }
+
+    // execute shell command and return nothing
+    bool executeCommand2(std::string commandString) 
+    {
+        std::unique_ptr<FILE, decltype(&pclose)> pipe = executeCommand(commandString); 
+        if (!pipe) return false; // popen failed
+        // close popen
+        if(popenClose(&pipe, commandString) != 0) return false;
+        return true;
+    }
+#endif
 
 // set env variables if necessary
 void setEnvVariables()
