@@ -74,6 +74,7 @@ wchar_t rcloneExePath[MAX_PATH];
     // https://learn.microsoft.com/en-us/windows/win32/procthread/creating-processes
     // https://stackoverflow.com/questions/7063859/c-popen-command-without-console
     // https://learn.microsoft.com/en-us/windows/win32/procthread/creating-a-child-process-with-redirected-input-and-output
+    // https://learn.microsoft.com/en-us/windows/win32/procthread/process-creation-flags
     
 
     bool executeCommand(std::string command, commandOutput &output, bool isCmd)
@@ -115,7 +116,7 @@ wchar_t rcloneExePath[MAX_PATH];
             NULL,                                   // Process handle not inheritable
             NULL,                                   // Thread handle not inheritable
             TRUE,                                   // Set handle inheritance to ???
-            CREATE_NO_WINDOW,                       // Creation flags
+            CREATE_PRESERVE_CODE_AUTHZ_LEVEL | CREATE_UNICODE_ENVIRONMENT | CREATE_NO_WINDOW,  // Creation flags
             NULL,                                   // Use parent's environment block
             NULL,                                   // Use parent's starting directory 
             &siStartInfo,                           // Pointer to STARTUPINFO structure
