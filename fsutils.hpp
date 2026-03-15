@@ -307,19 +307,24 @@ void setEnvVariables()
     gLogProc(gPluginNumber, MSGTYPE_DETAILS, (WCHAR*)u"Set PATH env variable.");
 #endif
 #if  defined(_WIN32) || defined(_WIN64)
-    std::string resultString;
-    if(!executeCommandAndReturnString("where rclone", resultString, true))
+    std::vector<wcharstring> resultVector;
+    if(!executeCommandAndReturnVector("where rclone", resultVector, true))
     {
         gLogProc(gPluginNumber, MSGTYPE_IMPORTANTERROR, (WCHAR*)u"Failed to get rclone.exe executable path from shell.");
         return;
     }
-    for(int i = resultString.length() - 1; i >= 0; i--) {
-        if(!std::isspace(resultString.at(i))) {
-            resultString = resultString.substr(0, i + 1);
-            break;
-        }
+    if(!file_exists(UTF16toUTF8(resultVector[0].data())))
+    {
+        // it's highly unlikely though, whatever
+        gLogProc(gPluginNumber, MSGTYPE_IMPORTANTERROR, 
+            (WCHAR*)wcharstring((WCHAR*)u"Failed to get rclone.exe executable path from shell. File ")
+            .append(resultVector[0])
+            .append((WCHAR*)u" does not exists.")
+            .data()
+        );
+        return;
     }
-    wchar_t* exePath = const_cast<wchar_t *>(UTF8toUTF16(resultString).c_str());
+    wchar_t* exePath = const_cast<wchar_t *>(resultVector[0].c_str());
     memcpy(rcloneExePath, exePath, MAX_PATH);
     gLogProc(gPluginNumber, MSGTYPE_DETAILS, (WCHAR*)u"Got path to rclone.exe executable from shell.");
 #endif
