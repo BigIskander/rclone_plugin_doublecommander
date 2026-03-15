@@ -310,8 +310,8 @@ void setEnvVariables()
         return;
     }
     for(int i = resultString.length() - 1; i >= 0; i--) {
-        if(!std::isspace(resultString.at(i)) || i == 0) {
-            resultString = resultString.substr(0, i);
+        if(!std::isspace(resultString.at(i))) {
+            resultString = resultString.substr(0, i + 1);
             break;
         }
     }
