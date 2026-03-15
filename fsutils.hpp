@@ -31,16 +31,30 @@ tCryptProcW gCryptProc = NULL;
 
 wcharstring sanitize(wcharstring value) 
 {
-    // escape special characters https://www.gnu.org/software/bash/manual/html_node/Double-Quotes.html
     wcharstring sanitizedValue = (WCHAR*)u"\"";
     for(int i = 0; i < value.size(); i++) {
+#if defined(_WIN32) || defined(_WIN64)
+        // escape special characters for Windows shell
+        // https://zenn.dev/tryjsky/articles/0610b2f32453e7?locale=en#escaping-symbols
+        if(value.at(i) == (WCHAR)u'%') {
+            sanitizedValue.push_back((WCHAR)u'"');
+            sanitizedValue.push_back((WCHAR)u'^');
+            sanitizedValue.push_back(value.at(i));
+            sanitizedValue.push_back((WCHAR)u'"');
+        } else {
+            sanitizedValue.push_back(value.at(i));
+        }
+#else
+        // escape special characters for POSIX compatible shell
+        // https://www.gnu.org/software/bash/manual/html_node/Double-Quotes.html
         if(
-            value.at(i) == (WCHAR)u'$' || value.at(i) == (WCHAR)u'`' || 
+            value.at(i) == (WCHAR)u'$' || value.at(i) == (WCHAR)u'`' || value.at(i) == (WCHAR)u'"' ||
             value.at(i) == (WCHAR)u'\\' || value.at(i) == (WCHAR)u'!'
         ) {
             sanitizedValue.push_back((WCHAR)u'\\');
         }
         sanitizedValue.push_back(value.at(i));
+#endif  
     }
     sanitizedValue.push_back((WCHAR)u'"');
     return sanitizedValue;
