@@ -124,7 +124,11 @@ wchar_t rcloneExePath[MAX_PATH];
 
         if(!isProcessCreated)
         {
-            gLogProc(gPluginNumber, MSGTYPE_IMPORTANTERROR, (WCHAR*)u"Failed to create process.");
+            wcharstring errorString = (WCHAR*)u"Failed to create process. Exe path: ";
+            if(exePath == NULL) errorString.append((WCHAR*)u"NULL, ");
+            else errorString.append(exePath).append((WCHAR*)u", ");
+            errorString.append((WCHAR*)u"command: ").append((WCHAR*)commandW);
+            gLogProc(gPluginNumber, MSGTYPE_IMPORTANTERROR, (WCHAR*)errorString.data());
             return false;
         }
 
