@@ -115,18 +115,18 @@ wchar_t rcloneExePath[MAX_PATH];
         // attach stdout pipe to startup info
         STARTUPINFOW siStartInfo;
         memset(&siStartInfo, 0, sizeof(siStartInfo));
-        siStartInfo.dwFlags |=  STARTF_USESTDHANDLES;
+        siStartInfo.dwFlags = STARTF_USESTDHANDLES;
         siStartInfo.hStdOutput = StdOutHandles[1];
 
         wchar_t* exePath = rcloneExePath;
         if(isCmd || wcslen(rcloneExePath) == 0) exePath = NULL;
         // create process
         PROCESS_INFORMATION piProcInfo;
-        wchar_t * commandW = const_cast<wchar_t *>(UTF8toUTF16(command).c_str());
-        
+        memset(&piProcInfo, 0, sizeof(piProcInfo));
+        std::wstring commandW(UTF8toUTF16(command).c_str()); // make copy of the value
         BOOL isProcessCreated =  CreateProcessW(
             exePath,                                // rclone.exe or just shell
-            commandW,                               // rclone command
+            const_cast<wchar_t*>(commandW.data()),                               // rclone command
             NULL,                                   // Process handle not inheritable
             NULL,                                   // Thread handle not inheritable
             TRUE,                                   // Set handle inheritance to ???
@@ -142,7 +142,7 @@ wchar_t rcloneExePath[MAX_PATH];
             wcharstring errorString = (WCHAR*)u"Failed to create process. Exe path: ";
             if(exePath == NULL) errorString.append((WCHAR*)u"NULL, ");
             else errorString.append(exePath).append((WCHAR*)u", ");
-            errorString.append((WCHAR*)u"command: ").append((WCHAR*)commandW);
+            errorString.append((WCHAR*)u"command: ").append(commandW);
             gLogProc(gPluginNumber, MSGTYPE_IMPORTANTERROR, (WCHAR*)errorString.data());
             return false;
         }

@@ -53,6 +53,8 @@ LIBRARY_API int DCPCALL FsInitW(
 bool isInit = false;
 bool isPut = false;
 
+// int counter = 0;
+
 LIBRARY_API HANDLE DCPCALL FsFindFirstW(WCHAR* Path, WIN32_FIND_DATAW *FindData)
 {
     pResources pRes = NULL;
@@ -71,7 +73,8 @@ LIBRARY_API HANDLE DCPCALL FsFindFirstW(WCHAR* Path, WIN32_FIND_DATAW *FindData)
 
     if(!isInit)
     {
-        setEnvVariables(); // set env variables only once
+        //  gLogProc(gPluginNumber, MSGTYPE_CONNECT, (WCHAR*)u"123");
+        // setEnvVariables(); // set env variables only once
         isInit = true;
     }
 
@@ -81,7 +84,7 @@ LIBRARY_API HANDLE DCPCALL FsFindFirstW(WCHAR* Path, WIN32_FIND_DATAW *FindData)
     std::string resultString;
 
     if(wPath.length() == 1) { // root folder of plugin
-        // gLogProc(gPluginNumber, MSGTYPE_CONNECT, (WCHAR*)u"123");
+        // gLogProc(gPluginNumber, MSGTYPE_DETAILS, (WCHAR*)int_to_wcharstring(counter++).data());
         // request list of configured storages (available remotes) from rclone's config 
         std::string commandString("rclone listremotes");
         if(!executeCommandAndReturnVector(commandString, resultVector)) return (HANDLE)-1;
@@ -98,13 +101,13 @@ LIBRARY_API HANDLE DCPCALL FsFindFirstW(WCHAR* Path, WIN32_FIND_DATAW *FindData)
 
         pRes = new tResources;
         pRes->nCount = 0;
-        pRes->resource_array.resize(resultVector.size());
+        pRes->resource_array.resize(resultVector.size() + 1);
 
         size_t str_size;
         wcharstring itemName;
         for(int i = 0; i < resultVector.size(); i++) 
         {
-            itemName = resultVector[i].substr(resultVector.size() - 1); // delete last empty value
+            itemName = resultVector[i];
             str_size = (MAX_PATH > resultVector[i].size()+1) ? 
                 (resultVector[i].size()+1): MAX_PATH;
             memcpy(
@@ -114,6 +117,11 @@ LIBRARY_API HANDLE DCPCALL FsFindFirstW(WCHAR* Path, WIN32_FIND_DATAW *FindData)
             );
             pRes->resource_array[i].dwFileAttributes = FILE_ATTRIBUTE_DIRECTORY;
         }
+        memcpy(
+            pRes->resource_array[resultVector.size()].cFileName, 
+            (WCHAR*)u"<Settings>.<lnk>", 
+            MAX_PATH
+        );
 
     } else {
         // request list of items in folder of cloud storage (in json format)
@@ -507,7 +515,19 @@ LIBRARY_API int DCPCALL FsExecuteFileW(HWND MainWin, WCHAR* RemoteName, WCHAR* V
     if(wPath.length() == 0) return FS_EXEC_OK;
     std::replace(wPath.begin(), wPath.end(), u'\\', u'/');
     getFileName(wPath, fileName);
-    if(wPath == wcharstring((WCHAR*)u"/")) return FS_EXEC_OK;
+    try
+    {
+        if(wPath == wcharstring((WCHAR*)u"/<Settings>.<lnk>")) {
+            WCHAR resp[MAX_PATH];
+            gRequestProc(gPluginNumber, RT_TargetDir, NULL, NULL, resp, MAX_PATH);
+            return FS_EXEC_OK;
+        }
+    }
+    catch(const std::exception& e)
+    {
+        gLogProc(gPluginNumber, MSGTYPE_IMPORTANTERROR, (WCHAR*)UTF8toUTF16(e.what()).data());
+    }
+    return FS_EXEC_OK;
     if(wPath == wcharstring((WCHAR*)u"/").append(fileName)) return FS_EXEC_OK;
     if(gRequestProc(
         gPluginNumber, 
