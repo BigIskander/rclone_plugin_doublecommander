@@ -253,13 +253,23 @@ wchar_t rcloneExePath[MAX_PATH];
         // close popen
         int status = pclose(pipe->release());
         if(status != 0) {
-            // show message if error occured
-            gLogProc(gPluginNumber, MSGTYPE_IMPORTANTERROR, 
-                (WCHAR*) wcharstring((WCHAR*)u"Command (")
-                    .append(UTF8toUTF16(commandString))
-                    .append((WCHAR*)u") exited with status ")
-                    .append(int_to_wcharstring(status)).data()
-            );
+            if (WIFEXITED(status)) {
+                status = WEXITSTATUS(status);
+                // show message if error occured
+                gLogProc(gPluginNumber, MSGTYPE_IMPORTANTERROR, 
+                    (WCHAR*) wcharstring((WCHAR*)u"Command (")
+                        .append(UTF8toUTF16(commandString))
+                        .append((WCHAR*)u") exited with status ")
+                        .append(int_to_wcharstring(status)).data()
+                );
+            } else {
+                // show message if error occured
+                gLogProc(gPluginNumber, MSGTYPE_IMPORTANTERROR, 
+                    (WCHAR*) wcharstring((WCHAR*)u"Command (")
+                        .append(UTF8toUTF16(commandString))
+                        .append((WCHAR*)u") was terminated").data()
+                );
+            }
         }
         return status;
     }
