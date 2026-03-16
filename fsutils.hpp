@@ -29,6 +29,8 @@ tLogProcW gLogProc = NULL;
 tRequestProcW gRequestProc = NULL;
 tCryptProcW gCryptProc = NULL;
 
+CSimpleIniA ini;
+
 wcharstring sanitize(wcharstring value) 
 {
     wcharstring sanitizedValue = (WCHAR*)u"\"";

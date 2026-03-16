@@ -1,1 +1,1 @@
-cl.exe /O2 /EHsc /LD fsplugin.cpp /Fefsplugin.wfx64
+cl.exe /O2 /EHsc /LD fsplugin.cpp /Fe:fsplugin.wfx64

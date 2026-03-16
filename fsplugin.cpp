@@ -35,6 +35,7 @@ License along with this library; if not, write to the Free Software
 #include "fsplugin.h"
 #include "utils.hpp"
 #include "json.hpp"
+#include "SimpleIni.h"
 #include "fsutils.hpp"
 
 #define _plugin_name "Rclone"
@@ -52,6 +53,7 @@ LIBRARY_API int DCPCALL FsInitW(
 
 bool isInit = false;
 bool isPut = false;
+char DefaultIniName[MAX_PATH];
 
 LIBRARY_API HANDLE DCPCALL FsFindFirstW(WCHAR* Path, WIN32_FIND_DATAW *FindData)
 {
@@ -538,7 +540,24 @@ LIBRARY_API int DCPCALL FsExecuteFileW(HWND MainWin, WCHAR* RemoteName, WCHAR* V
             return FS_EXEC_SYMLINK;
         } else {
             /* not implemented yet */
-            gRequestProc(gPluginNumber, RT_MsgOK, (WCHAR*)wPath.data(), (WCHAR*)u"Not Impemented yet...", NULL, 0);
+            gRequestProc(gPluginNumber, RT_MsgOK, (WCHAR*)wPath.data(), (WCHAR*)UTF8toUTF16(DefaultIniName).data(), NULL, 0);
+
+            //
+            ini.SetUnicode();
+
+            SI_Error rc = ini.LoadFile(DefaultIniName);
+            if (rc < 0) {  gRequestProc(gPluginNumber, RT_MsgOK, (WCHAR*)wPath.data(), (WCHAR*)int_to_wcharstring(rc).data(), NULL, 0); };
+
+            const char* pv;
+            pv = ini.GetValue("rclone_plugin", "rclone_executable_binary_path", "");
+
+            gRequestProc(gPluginNumber, RT_MsgOK, (WCHAR*)wPath.data(), (WCHAR*)UTF8toUTF16(pv).data(), NULL, 0);
+            
+
+            ini.SetValue("rclone_plugin", "rclone_executable_binary_path", "C:\\rclone\\rclone.exe");
+
+            ini.SaveFile(DefaultIniName);
+            //
         }
         return FS_EXEC_OK;
     }    
@@ -556,4 +575,10 @@ LIBRARY_API int DCPCALL FsExecuteFileW(HWND MainWin, WCHAR* RemoteName, WCHAR* V
         0)
     ) return FS_EXEC_YOURSELF;
     return FS_EXEC_OK;
+}
+
+// set path to the file with settings
+LIBRARY_API void DCPCALL FsSetDefaultParams(FsDefaultParamStruct* dps)
+{
+    memcpy(DefaultIniName, dps->DefaultIniName, MAX_PATH);
 }
