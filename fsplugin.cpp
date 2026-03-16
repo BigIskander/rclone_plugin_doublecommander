@@ -53,8 +53,6 @@ LIBRARY_API int DCPCALL FsInitW(
 bool isInit = false;
 bool isPut = false;
 
-// int counter = 0;
-
 LIBRARY_API HANDLE DCPCALL FsFindFirstW(WCHAR* Path, WIN32_FIND_DATAW *FindData)
 {
     pResources pRes = NULL;
@@ -73,8 +71,8 @@ LIBRARY_API HANDLE DCPCALL FsFindFirstW(WCHAR* Path, WIN32_FIND_DATAW *FindData)
 
     if(!isInit)
     {
-        //  gLogProc(gPluginNumber, MSGTYPE_CONNECT, (WCHAR*)u"123");
-        // setEnvVariables(); // set env variables only once
+        // gLogProc(gPluginNumber, MSGTYPE_CONNECT, (WCHAR*)u"123");
+        setEnvVariables(); // set env variables only once
         isInit = true;
     }
 
@@ -84,20 +82,9 @@ LIBRARY_API HANDLE DCPCALL FsFindFirstW(WCHAR* Path, WIN32_FIND_DATAW *FindData)
     std::string resultString;
 
     if(wPath.length() == 1) { // root folder of plugin
-        // gLogProc(gPluginNumber, MSGTYPE_DETAILS, (WCHAR*)int_to_wcharstring(counter++).data());
         // request list of configured storages (available remotes) from rclone's config 
         std::string commandString("rclone listremotes");
         if(!executeCommandAndReturnVector(commandString, resultVector)) return (HANDLE)-1;
-
-#if  defined(_WIN32) || defined(_WIN64)
-        if(resultVector.size() == 0) 
-        {
-            // fix for no opening empty folders in total commander
-            // thanks to google ai https://share.google/aimode/EaWYpReZbuguuXPez
-            SetLastError(ERROR_NO_MORE_FILES);
-            return (HANDLE)-1;
-        }
-#endif
 
         pRes = new tResources;
         pRes->nCount = 0;
@@ -117,9 +104,32 @@ LIBRARY_API HANDLE DCPCALL FsFindFirstW(WCHAR* Path, WIN32_FIND_DATAW *FindData)
             );
             pRes->resource_array[i].dwFileAttributes = FILE_ATTRIBUTE_DIRECTORY;
         }
+        // add settings item
         memcpy(
             pRes->resource_array[resultVector.size()].cFileName, 
-            (WCHAR*)u"<Settings>.<lnk>", 
+            (WCHAR*)u"<Settings>", 
+            MAX_PATH
+        );
+
+    } else if(wPath == (WCHAR*)u"/<Settings>") {
+        // show settings page
+        pRes = new tResources;
+        pRes->nCount = 0;
+        pRes->resource_array.resize(3);
+        // settings menu kinda
+        memcpy(
+            pRes->resource_array[0].cFileName, 
+            (WCHAR*)u"<rclone_executable_binary_path>", 
+            MAX_PATH
+        );
+        memcpy(
+            pRes->resource_array[1].cFileName, 
+            (WCHAR*)u"<rclone_custom_config_path>", 
+            MAX_PATH
+        );
+        memcpy(
+            pRes->resource_array[2].cFileName, 
+            (WCHAR*)u"<rclone_config_password>", 
             MAX_PATH
         );
 
@@ -514,20 +524,26 @@ LIBRARY_API int DCPCALL FsExecuteFileW(HWND MainWin, WCHAR* RemoteName, WCHAR* V
     if(wVerb != wcharstring((WCHAR*)u"open")) return FS_EXEC_OK;
     if(wPath.length() == 0) return FS_EXEC_OK;
     std::replace(wPath.begin(), wPath.end(), u'\\', u'/');
-    getFileName(wPath, fileName);
-    try
+    wcharstring settingsPage = (WCHAR*)u"/<Settings>";
+    // manage settings here
+    if(wPath.substr(0, settingsPage.length()) == wcharstring((WCHAR*)u"/<Settings>")) 
     {
-        if(wPath == wcharstring((WCHAR*)u"/<Settings>.<lnk>")) {
-            WCHAR resp[MAX_PATH];
-            gRequestProc(gPluginNumber, RT_TargetDir, NULL, NULL, resp, MAX_PATH);
-            return FS_EXEC_OK;
+        if(wPath == wcharstring((WCHAR*)u"/<Settings>")) {
+            #if  defined(_WIN32) || defined(_WIN64)
+                WCHAR* settingsPath = (WCHAR*)u"\\<Settings>";
+            #else
+                WCHAR* settingsPath = (WCHAR*)u"/<Settings>";
+            #endif
+            memcpy(RemoteName, settingsPath, MAX_PATH); 
+            return FS_EXEC_SYMLINK;
+        } else {
+            /* not implemented yet */
+            gRequestProc(gPluginNumber, RT_MsgOK, (WCHAR*)wPath.data(), (WCHAR*)u"Not Impemented yet...", NULL, 0);
         }
-    }
-    catch(const std::exception& e)
-    {
-        gLogProc(gPluginNumber, MSGTYPE_IMPORTANTERROR, (WCHAR*)UTF8toUTF16(e.what()).data());
-    }
-    return FS_EXEC_OK;
+        return FS_EXEC_OK;
+    }    
+    // copy file to temporary folder in computer and open
+    getFileName(wPath, fileName);
     if(wPath == wcharstring((WCHAR*)u"/").append(fileName)) return FS_EXEC_OK;
     if(gRequestProc(
         gPluginNumber, 
