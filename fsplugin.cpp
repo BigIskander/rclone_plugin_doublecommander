@@ -580,7 +580,7 @@ LIBRARY_API int DCPCALL FsExecuteFileW(HWND MainWin, WCHAR* RemoteName, WCHAR* V
                     (WCHAR*)answear, sizeof(answear)
                 )) {
                     // save new value
-                    ini.SetValue("rclone_plugin", "rclone_executable_binary_path", UTF16toUTF8((WCHAR*)answear).c_str());
+                    ini.SetValue("rclone_plugin", "rclone_executable_binary_path", trim(UTF16toUTF8((WCHAR*)answear)).c_str());
                     ini.SaveFile(SettingsIniName.data());
                 }
             }
@@ -597,7 +597,7 @@ LIBRARY_API int DCPCALL FsExecuteFileW(HWND MainWin, WCHAR* RemoteName, WCHAR* V
                     (WCHAR*)answear, sizeof(answear)
                 )) {
                     // save new value
-                    ini.SetValue("rclone_plugin", "rclone_custom_config_path", UTF16toUTF8((WCHAR*)answear).c_str());
+                    ini.SetValue("rclone_plugin", "rclone_custom_config_path", trim(UTF16toUTF8((WCHAR*)answear)).c_str());
                     ini.SaveFile(SettingsIniName.data());
                 }
             }

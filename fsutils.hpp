@@ -65,6 +65,21 @@ wcharstring sanitize(wcharstring value)
     return sanitizedValue;
 }
 
+std::string trim(std::string value)
+{
+    std::string trimmedValue;
+    // trim from start
+    int i, j;
+    for(i = 0; i < value.length(); i++) {
+        if(!std::isspace(value.at(i))) break;
+    }
+    for(j = value.length() - 1; j >= i; j--) {
+        if(!std::isspace(value.at(j))) break;
+    }
+    if(i == j) return std::string();
+    return value.substr(i, j - i + 1);
+}
+
 #if  defined(_WIN32) || defined(_WIN64)
 // Windows version of functions used to interact with shell
 
