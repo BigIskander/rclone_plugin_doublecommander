@@ -74,7 +74,7 @@ LIBRARY_API HANDLE DCPCALL FsFindFirstW(WCHAR* Path, WIN32_FIND_DATAW *FindData)
 
     if(!isInit)
     {
-        gLogProc(gPluginNumber, MSGTYPE_CONNECT, (WCHAR*)u"123");
+        // gLogProc(gPluginNumber, MSGTYPE_CONNECT, (WCHAR*)u"123");
         setEnvVariables(); // set env variables only once
         isInit = true;
     }
@@ -118,21 +118,26 @@ LIBRARY_API HANDLE DCPCALL FsFindFirstW(WCHAR* Path, WIN32_FIND_DATAW *FindData)
         // show settings page
         pRes = new tResources;
         pRes->nCount = 0;
-        pRes->resource_array.resize(3);
+        pRes->resource_array.resize(4);
         // settings menu kinda
         memcpy(
             pRes->resource_array[0].cFileName, 
-            (WCHAR*)u"<rclone_executable_binary_path>", 
+            (WCHAR*)u"<0_edit_rclone_executable_binary_path>", 
             MAX_PATH
         );
         memcpy(
             pRes->resource_array[1].cFileName, 
-            (WCHAR*)u"<rclone_custom_config_path>", 
+            (WCHAR*)u"<1_edit_rclone_custom_config_path>", 
             MAX_PATH
         );
         memcpy(
             pRes->resource_array[2].cFileName, 
-            (WCHAR*)u"<rclone_config_password>", 
+            (WCHAR*)u"<2_edit_rclone_config_password>", 
+            MAX_PATH
+        );
+        memcpy(
+            pRes->resource_array[3].cFileName, 
+            (WCHAR*)u"<3_delete_rclone_config_password>", 
             MAX_PATH
         );
 
@@ -562,7 +567,7 @@ LIBRARY_API int DCPCALL FsExecuteFileW(HWND MainWin, WCHAR* RemoteName, WCHAR* V
         } else {
             wchar_t answear[MAX_PATH];
             // path to rclone executable binary
-            if(wPath == wcharstring((WCHAR*)u"/<Settings>/<rclone_executable_binary_path>")) {
+            if(wPath == wcharstring((WCHAR*)u"/<Settings>/<0_edit_rclone_executable_binary_path>")) {
                 // read value from config file
                 readSettingsFromIniFile();
                 memcpy(&answear, 
@@ -580,7 +585,7 @@ LIBRARY_API int DCPCALL FsExecuteFileW(HWND MainWin, WCHAR* RemoteName, WCHAR* V
                 }
             }
             // path to rclone custom config file
-            if(wPath == wcharstring((WCHAR*)u"/<Settings>/<rclone_custom_config_path>")) {
+            if(wPath == wcharstring((WCHAR*)u"/<Settings>/<1_edit_rclone_custom_config_path>")) {
                 // read value from config file
                 readSettingsFromIniFile();
                 memcpy(&answear, 
@@ -597,15 +602,14 @@ LIBRARY_API int DCPCALL FsExecuteFileW(HWND MainWin, WCHAR* RemoteName, WCHAR* V
                 }
             }
             // password to decrypt rclone config file
-            if(wPath == wcharstring((WCHAR*)u"/<Settings>/<rclone_config_password>")) {
+            if(wPath == wcharstring((WCHAR*)u"/<Settings>/<2_edit_rclone_config_password>")) {
                 // read password from password's storage
                 answear[0] = '\0';
                 int ret =  gCryptProc(gPluginNumber, gCryptoNr, FS_CRYPT_LOAD_PASSWORD, (WCHAR*)L"Rclone_plugin", (WCHAR*)answear, MAX_PATH);
-                gLogProc(gPluginNumber, MSGTYPE_CONNECT, (WCHAR*)int_to_wcharstring(ret).data());
-                // if(ret == FS_FILE_OK || ret == FS_FILE_READERROR)
-                // {
+                if(ret == FS_FILE_OK || ret == FS_FILE_READERROR)
+                {
                     if(gRequestProc(gPluginNumber, RT_Password, (WCHAR*)u"Rclone plugin", 
-                        (WCHAR*)u"Password to decrypt rclone config file \n[left empty if config file unencrypted]", 
+                        (WCHAR*)u"Password used to decrypt rclone config file \n[left empty if config file is unencrypted]", 
                         (WCHAR*)answear, sizeof(answear)
                     )) {
                         if(wcharstring((WCHAR*)answear).length() == 0) {
@@ -616,7 +620,22 @@ LIBRARY_API int DCPCALL FsExecuteFileW(HWND MainWin, WCHAR* RemoteName, WCHAR* V
                             gCryptProc(gPluginNumber, gCryptoNr, FS_CRYPT_SAVE_PASSWORD, (WCHAR*)L"Rclone_plugin", (WCHAR*)answear, MAX_PATH);
                         }
                     }
-                // }
+                }
+            }
+            // workaround because empty string password "" can cause errors sometimes
+            if(wPath == wcharstring((WCHAR*)u"/<Settings>/<3_delete_rclone_config_password>")) {
+                if(gRequestProc(gPluginNumber, RT_MsgYesNo, (WCHAR*)u"Rclone plugin", 
+                    (WCHAR*)u"Delete password, used to decrypt rclone config file, from passord's storage?", 
+                    NULL, 0
+                )) {
+                    // delete password from storage
+                    if(gCryptProc(gPluginNumber, gCryptoNr, FS_CRYPT_DELETE_PASSWORD, 
+                        (WCHAR*)L"Rclone_plugin",(WCHAR*)answear, MAX_PATH) == FS_FILE_OK
+                    ) {
+                        gRequestProc(gPluginNumber, RT_MsgOK, (WCHAR*)u"Rclone plugin", 
+                            (WCHAR*)u"Password was deleted successfully.", NULL, 0);
+                    }
+                }
             }
         }
         return FS_EXEC_OK;
