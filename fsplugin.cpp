@@ -74,7 +74,7 @@ LIBRARY_API HANDLE DCPCALL FsFindFirstW(WCHAR* Path, WIN32_FIND_DATAW *FindData)
 
     if(!isInit)
     {
-        // gLogProc(gPluginNumber, MSGTYPE_CONNECT, (WCHAR*)u"123");
+        gLogProc(gPluginNumber, MSGTYPE_CONNECT, (WCHAR*)u"123");
         setEnvVariables(); // set env variables only once
         isInit = true;
     }
@@ -572,10 +572,10 @@ LIBRARY_API int DCPCALL FsExecuteFileW(HWND MainWin, WCHAR* RemoteName, WCHAR* V
                 if(gRequestProc(gPluginNumber, RT_Other, (WCHAR*)u"Rclone plugin", 
                     (WCHAR*)u"Path to rclone executable binary (e.g. rclone.exe in Windows) \n"
                         "[left empty if rclone's location folder is in PATH env variable]", 
-                    answear, sizeof(answear)
+                    (WCHAR*)answear, sizeof(answear)
                 )) {
                     // save new value
-                    ini.SetValue("rclone_plugin", "rclone_executable_binary_path", UTF16toUTF8(answear).c_str());
+                    ini.SetValue("rclone_plugin", "rclone_executable_binary_path", UTF16toUTF8((WCHAR*)answear).c_str());
                     ini.SaveFile(SettingsIniName.data());
                 }
             }
@@ -589,10 +589,10 @@ LIBRARY_API int DCPCALL FsExecuteFileW(HWND MainWin, WCHAR* RemoteName, WCHAR* V
                 );
                 if(gRequestProc(gPluginNumber, RT_Other, (WCHAR*)u"Rclone plugin", 
                     (WCHAR*)u"Path to rclone custom config file \n[left empty if default config file is used]", 
-                    answear, sizeof(answear)
+                    (WCHAR*)answear, sizeof(answear)
                 )) {
                     // save new value
-                    ini.SetValue("rclone_plugin", "rclone_custom_config_path", UTF16toUTF8(answear).c_str());
+                    ini.SetValue("rclone_plugin", "rclone_custom_config_path", UTF16toUTF8((WCHAR*)answear).c_str());
                     ini.SaveFile(SettingsIniName.data());
                 }
             }
@@ -600,22 +600,23 @@ LIBRARY_API int DCPCALL FsExecuteFileW(HWND MainWin, WCHAR* RemoteName, WCHAR* V
             if(wPath == wcharstring((WCHAR*)u"/<Settings>/<rclone_config_password>")) {
                 // read password from password's storage
                 answear[0] = '\0';
-                int ret =  gCryptProc(gPluginNumber, gCryptoNr, FS_CRYPT_LOAD_PASSWORD, L"Rclone_plugin", answear, MAX_PATH);
-                if(ret == FS_FILE_OK || ret == FS_FILE_READERROR)
-                {
+                int ret =  gCryptProc(gPluginNumber, gCryptoNr, FS_CRYPT_LOAD_PASSWORD, (WCHAR*)L"Rclone_plugin", (WCHAR*)answear, MAX_PATH);
+                gLogProc(gPluginNumber, MSGTYPE_CONNECT, (WCHAR*)int_to_wcharstring(ret).data());
+                // if(ret == FS_FILE_OK || ret == FS_FILE_READERROR)
+                // {
                     if(gRequestProc(gPluginNumber, RT_Password, (WCHAR*)u"Rclone plugin", 
                         (WCHAR*)u"Password to decrypt rclone config file \n[left empty if config file unencrypted]", 
-                        answear, sizeof(answear)
+                        (WCHAR*)answear, sizeof(answear)
                     )) {
-                        if(answear[0] == '\0') {
+                        if(wcharstring((WCHAR*)answear).length() == 0) {
                             // delete password from storage if empty password
-                            gCryptProc(gPluginNumber, gCryptoNr, FS_CRYPT_DELETE_PASSWORD, L"Rclone_plugin", answear, MAX_PATH);
+                            gCryptProc(gPluginNumber, gCryptoNr, FS_CRYPT_DELETE_PASSWORD, (WCHAR*)L"Rclone_plugin",(WCHAR*)answear, MAX_PATH);
                         } else {
                             // write new passwrod to storage or update if exists
-                            gCryptProc(gPluginNumber, gCryptoNr, FS_CRYPT_SAVE_PASSWORD, L"Rclone_plugin", answear, MAX_PATH);
+                            gCryptProc(gPluginNumber, gCryptoNr, FS_CRYPT_SAVE_PASSWORD, (WCHAR*)L"Rclone_plugin", (WCHAR*)answear, MAX_PATH);
                         }
                     }
-                }
+                // }
             }
         }
         return FS_EXEC_OK;
