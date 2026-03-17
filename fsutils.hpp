@@ -28,7 +28,10 @@ tProgressProcW gProgressProc = NULL;
 tLogProcW gLogProc = NULL;
 tRequestProcW gRequestProc = NULL;
 tCryptProcW gCryptProc = NULL;
+int gCryptoNr;
+int gCryptFlags;
 
+std::string SettingsIniName = "\0"; // empty null terminated string
 CSimpleIniA ini;
 
 wcharstring sanitize(wcharstring value) 
@@ -436,6 +439,18 @@ bool isItemInCache(PathFolderElement *cache, wcharstring itemPath)
     );
     if(it == cache->elementsCache.end()) return false;
     else return true;
+}
+
+// functions to manage ini file
+void readSettingsFromIniFile()
+{
+    ini.SetUnicode();
+    SI_Error rc = ini.LoadFile(SettingsIniName.data());
+    if (rc < 0) { 
+        gLogProc(gPluginNumber, MSGTYPE_IMPORTANTERROR, 
+            (WCHAR*)u"Failed to read settings from ini file, ini file might not exists yet."
+        );
+    };
 }
 
 #endif
