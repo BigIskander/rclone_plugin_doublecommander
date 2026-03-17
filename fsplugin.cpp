@@ -54,6 +54,7 @@ LIBRARY_API int DCPCALL FsInitW(
 bool isInit = false;
 bool isPut = false;
 char DefaultIniName[MAX_PATH];
+wcharstring settingsPage = (WCHAR*)u"/<Settings>";
 
 LIBRARY_API HANDLE DCPCALL FsFindFirstW(WCHAR* Path, WIN32_FIND_DATAW *FindData)
 {
@@ -253,6 +254,9 @@ LIBRARY_API int DCPCALL FsGetFileW(WCHAR* RemoteName, WCHAR* LocalName, int Copy
     if(wPath == (WCHAR*)u"/")
         return FS_FILE_NOTSUPPORTED;
 
+    // Just ignore if it is settings page
+    if(wPath.substr(0, settingsPage.length()) == wcharstring((WCHAR*)u"/<Settings>")) return FS_FILE_OK;
+
     getFileName(wPath, fileName);
     if(wPath == wcharstring((WCHAR*)u"/").append(fileName))
         return FS_FILE_NOTSUPPORTED; // cannot copy file from root folder of plugin
@@ -294,6 +298,9 @@ LIBRARY_API int DCPCALL FsPutFileW(WCHAR* LocalName, WCHAR* RemoteName, int Copy
     if(wPath == (WCHAR*)u"/")
         return FS_FILE_NOTSUPPORTED;
 
+    // Just ignore if it is settings page
+    if(wPath.substr(0, settingsPage.length()) == wcharstring((WCHAR*)u"/<Settings>")) return FS_FILE_OK;
+
     getFolderPath(wPath, folderPath);
     if(folderPath == (WCHAR*)u"/")
         return FS_FILE_NOTSUPPORTED; // cannot copy to root folder of plugin 
@@ -334,6 +341,10 @@ LIBRARY_API int DCPCALL FsRenMovFileW(
     if(wPathOld.length() == 0 || wPathNew.length() == 0) return FS_FILE_OK; // just ignore this case
     std::replace(wPathOld.begin(), wPathOld.end(), u'\\', u'/');
     std::replace(wPathNew.begin(), wPathNew.end(), u'\\', u'/');
+
+    // Just ignore if it is settings page
+    if(wPathOld.substr(0, settingsPage.length()) == wcharstring((WCHAR*)u"/<Settings>")) return FS_FILE_OK;
+    if(wPathNew.substr(0, settingsPage.length()) == wcharstring((WCHAR*)u"/<Settings>")) return FS_FILE_OK;
 
     getFileName(wPathOld, fileNameOld);
     getFileName(wPathNew, fileNameNew);
@@ -392,6 +403,9 @@ LIBRARY_API BOOL DCPCALL FsDeleteFileW(WCHAR* RemoteName)
     if(wPath.length() == 0) return true; // just ignore this case
     std::replace(wPath.begin(), wPath.end(), u'\\', u'/');
 
+    // Just ignore if it is settings page
+    if(wPath.substr(0, settingsPage.length()) == wcharstring((WCHAR*)u"/<Settings>")) return true;
+
     getFileName(wPath, fileName);
 
     // no delete file if it is root folder of plugin
@@ -416,6 +430,9 @@ LIBRARY_API BOOL DCPCALL FsRemoveDirW(WCHAR* RemoteName)
     if(wPath.length() == 0) return true; // just ignore this case
     std::replace(wPath.begin(), wPath.end(), u'\\', u'/');
 
+    // Just ignore if it is settings page
+    if(wPath.substr(0, settingsPage.length()) == wcharstring((WCHAR*)u"/<Settings>")) return true;
+
     getFileName(wPath, fileName);
 
     // no delete folder if it is root folder of plugin
@@ -439,6 +456,9 @@ LIBRARY_API BOOL DCPCALL FsMkDirW(WCHAR* Path)
     wcharstring wPath(Path), fileName, folderPath;
     if(wPath.length() == 0) return true; // just ignore this case
     std::replace(wPath.begin(), wPath.end(), u'\\', u'/');
+
+    // Just ignore if it is settings page
+    if(wPath.substr(0, settingsPage.length()) == wcharstring((WCHAR*)u"/<Settings>")) return true;
 
     getFileName(wPath, fileName);
 
@@ -478,6 +498,8 @@ LIBRARY_API void DCPCALL FsStatusInfoW(WCHAR* RemoteDir, int InfoStartEnd, int I
     {
         wPath = wPath.substr(0, wPath.size() - 1);
     }
+    // Just ignore if it is settings page
+    if(wPath.substr(0, settingsPage.length()) == wcharstring((WCHAR*)u"/<Settings>")) return;
     // put file or files
     if(InfoOperation == FS_STATUS_OP_PUT_SINGLE || InfoOperation == FS_STATUS_OP_PUT_MULTI)
     {
@@ -526,7 +548,6 @@ LIBRARY_API int DCPCALL FsExecuteFileW(HWND MainWin, WCHAR* RemoteName, WCHAR* V
     if(wVerb != wcharstring((WCHAR*)u"open")) return FS_EXEC_OK;
     if(wPath.length() == 0) return FS_EXEC_OK;
     std::replace(wPath.begin(), wPath.end(), u'\\', u'/');
-    wcharstring settingsPage = (WCHAR*)u"/<Settings>";
     // manage settings here
     if(wPath.substr(0, settingsPage.length()) == wcharstring((WCHAR*)u"/<Settings>")) 
     {
