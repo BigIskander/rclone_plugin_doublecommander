@@ -67,8 +67,6 @@ wcharstring sanitize(wcharstring value)
 
 std::string trim(std::string value)
 {
-    std::string trimmedValue;
-    // trim from start
     int i, j;
     for(i = 0; i < value.length(); i++) {
         if(!std::isspace(value.at(i))) break;
@@ -464,6 +462,21 @@ void readSettingsFromIniFile()
     if (rc < 0) { 
         gLogProc(gPluginNumber, MSGTYPE_IMPORTANTERROR, 
             (WCHAR*)u"Failed to read settings from ini file, ini file might not exists yet."
+        );
+    };
+}
+
+void saveSettingsToIniFile()
+{
+    SI_Error rc = ini.SaveFile(SettingsIniName.data());
+    if (rc < 0) { 
+        gLogProc(gPluginNumber, MSGTYPE_IMPORTANTERROR, 
+            (WCHAR*)wcharstring((WCHAR*)u"Failed to save settings to settings file: ")
+            .append(UTF8toUTF16(SettingsIniName)).data()
+        );
+        gRequestProc(gPluginNumber, RT_MsgOK, (WCHAR*)u"Rclone plugin", 
+            (WCHAR*)wcharstring((WCHAR*)u"Failed to save settings to settings file: ")
+            .append(UTF8toUTF16(SettingsIniName)).data(), NULL, 0
         );
     };
 }

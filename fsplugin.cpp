@@ -581,7 +581,7 @@ LIBRARY_API int DCPCALL FsExecuteFileW(HWND MainWin, WCHAR* RemoteName, WCHAR* V
                 )) {
                     // save new value
                     ini.SetValue("rclone_plugin", "rclone_executable_binary_path", trim(UTF16toUTF8((WCHAR*)answear)).c_str());
-                    ini.SaveFile(SettingsIniName.data());
+                    saveSettingsToIniFile();
                 }
             }
             // path to rclone custom config file
@@ -598,7 +598,7 @@ LIBRARY_API int DCPCALL FsExecuteFileW(HWND MainWin, WCHAR* RemoteName, WCHAR* V
                 )) {
                     // save new value
                     ini.SetValue("rclone_plugin", "rclone_custom_config_path", trim(UTF16toUTF8((WCHAR*)answear)).c_str());
-                    ini.SaveFile(SettingsIniName.data());
+                    saveSettingsToIniFile();
                 }
             }
             // password to decrypt rclone config file
@@ -614,11 +614,22 @@ LIBRARY_API int DCPCALL FsExecuteFileW(HWND MainWin, WCHAR* RemoteName, WCHAR* V
                     )) {
                         if(wcharstring((WCHAR*)answear).length() == 0) {
                             // delete password from storage if empty password
-                            gCryptProc(gPluginNumber, gCryptoNr, FS_CRYPT_DELETE_PASSWORD, (WCHAR*)L"Rclone_plugin",(WCHAR*)answear, MAX_PATH);
+                            if(gCryptProc(gPluginNumber, gCryptoNr, FS_CRYPT_DELETE_PASSWORD, (WCHAR*)L"Rclone_plugin",(WCHAR*)answear, MAX_PATH) != FS_FILE_OK) {
+                                gRequestProc(gPluginNumber, RT_MsgOK, (WCHAR*)u"Rclone plugin", 
+                                    (WCHAR*)u"Failed to change password in passwords stroe.", NULL, 0);
+                                return FS_EXEC_OK;
+                            }
+                            ini.SetValue("rclone_plugin", "rclone_is_config_password_set", "No");
                         } else {
                             // write new passwrod to storage or update if exists
-                            gCryptProc(gPluginNumber, gCryptoNr, FS_CRYPT_SAVE_PASSWORD, (WCHAR*)L"Rclone_plugin", (WCHAR*)answear, MAX_PATH);
+                            if(gCryptProc(gPluginNumber, gCryptoNr, FS_CRYPT_SAVE_PASSWORD, (WCHAR*)L"Rclone_plugin", (WCHAR*)answear, MAX_PATH) != FS_FILE_OK) {
+                                gRequestProc(gPluginNumber, RT_MsgOK, (WCHAR*)u"Rclone plugin", 
+                                    (WCHAR*)u"Failed to change password in passwords stroe.", NULL, 0);
+                                return FS_EXEC_OK;
+                            }
+                            ini.SetValue("rclone_plugin", "rclone_is_config_password_set", "Yes");
                         }
+                        saveSettingsToIniFile();
                     }
                 }
             }
@@ -632,8 +643,13 @@ LIBRARY_API int DCPCALL FsExecuteFileW(HWND MainWin, WCHAR* RemoteName, WCHAR* V
                     if(gCryptProc(gPluginNumber, gCryptoNr, FS_CRYPT_DELETE_PASSWORD, 
                         (WCHAR*)L"Rclone_plugin",(WCHAR*)answear, MAX_PATH) == FS_FILE_OK
                     ) {
+                        ini.SetValue("rclone_plugin", "rclone_is_config_password_set", "No");
+                        saveSettingsToIniFile();
                         gRequestProc(gPluginNumber, RT_MsgOK, (WCHAR*)u"Rclone plugin", 
-                            (WCHAR*)u"Password was deleted successfully.", NULL, 0);
+                            (WCHAR*)u"Password was successfully deleted from passwords store.", NULL, 0);
+                    } else {
+                        gRequestProc(gPluginNumber, RT_MsgOK, (WCHAR*)u"Rclone plugin", 
+                            (WCHAR*)u"Failed to delete password from passwords stroe.", NULL, 0);
                     }
                 }
             }
