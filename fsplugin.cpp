@@ -69,7 +69,12 @@ LIBRARY_API HANDLE DCPCALL FsFindFirstW(WCHAR* Path, WIN32_FIND_DATAW *FindData)
     {
         wPath = wPath.substr(0, wPath.size() - 1);
         // ignore this kind of request when put files, for speed
-        if(isPut) return (HANDLE)-1;
+        if(isPut) {
+            #if  defined(_WIN32) || defined(_WIN64)
+                SetLastError(ERROR_NO_MORE_FILES);
+            #endif
+            return (HANDLE)-1;
+        }
     } 
 
     if(!isInit)
@@ -149,7 +154,12 @@ LIBRARY_API HANDLE DCPCALL FsFindFirstW(WCHAR* Path, WIN32_FIND_DATAW *FindData)
         std::string commandString = UTF16toUTF8(
                 wcharstring((WCHAR*)u"rclone lsjson ").append(sanitize(wPath.substr(1))).data()
             );
-        if(!executeCommandAndReturnString(commandString, resultString)) return (HANDLE)-1;
+        if(!executeCommandAndReturnString(commandString, resultString)) {
+            #if  defined(_WIN32) || defined(_WIN64)
+                SetLastError(ERROR_NO_MORE_FILES);
+            #endif
+            return (HANDLE)-1;
+        }
 
         try
         {
@@ -164,15 +174,15 @@ LIBRARY_API HANDLE DCPCALL FsFindFirstW(WCHAR* Path, WIN32_FIND_DATAW *FindData)
                 }
             );
 
-#if  defined(_WIN32) || defined(_WIN64)
             if(resultJsonVector.size() == 0) 
             {
-                // fix for no opening empty folders in total commander
-                // thanks to google ai https://share.google/aimode/EaWYpReZbuguuXPez
-                SetLastError(ERROR_NO_MORE_FILES);
+                #if  defined(_WIN32) || defined(_WIN64)
+                    // fix for no opening empty folders in total commander
+                    // thanks to google ai https://share.google/aimode/EaWYpReZbuguuXPez
+                    SetLastError(ERROR_NO_MORE_FILES);
+                #endif
                 return (HANDLE)-1;
             }
-#endif
 
             pRes = new tResources;
             pRes->nCount = 0;
@@ -205,12 +215,24 @@ LIBRARY_API HANDLE DCPCALL FsFindFirstW(WCHAR* Path, WIN32_FIND_DATAW *FindData)
         {
             // got error if path does not exists usually
             gLogProc(gPluginNumber, MSGTYPE_DETAILS, (WCHAR*) UTF8toUTF16(e.what()).data());
+            if(pRes) { // to release memory
+                pRes->resource_array.clear();
+                delete pRes;
+            }
+            #if  defined(_WIN32) || defined(_WIN64)
+                SetLastError(ERROR_NO_MORE_FILES);
+            #endif
             return (HANDLE)-1;
         }
     }
 
     if(!pRes || pRes->resource_array.size()==0)
+    {
+        #if  defined(_WIN32) || defined(_WIN64)
+            SetLastError(ERROR_NO_MORE_FILES);
+        #endif
         return (HANDLE)-1;
+    }
 
     if(pRes->resource_array.size()>0){
         memset(FindData, 0, sizeof(WIN32_FIND_DATAW));
