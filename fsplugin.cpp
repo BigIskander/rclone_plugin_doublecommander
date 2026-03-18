@@ -75,6 +75,7 @@ LIBRARY_API HANDLE DCPCALL FsFindFirstW(WCHAR* Path, WIN32_FIND_DATAW *FindData)
     if(!isInit)
     {
         // gLogProc(gPluginNumber, MSGTYPE_CONNECT, (WCHAR*)u"123");
+        readSettingsFromIniFile();
         setEnvVariables(); // set env variables only once
         isInit = true;
     }
@@ -87,7 +88,9 @@ LIBRARY_API HANDLE DCPCALL FsFindFirstW(WCHAR* Path, WIN32_FIND_DATAW *FindData)
     if(wPath.length() == 1) { // root folder of plugin
         // request list of configured storages (available remotes) from rclone's config 
         std::string commandString("rclone listremotes");
-        if(!executeCommandAndReturnVector(commandString, resultVector)) return (HANDLE)-1;
+        if(!executeCommandAndReturnVector(commandString, resultVector)) {
+            resultVector = std::vector<wcharstring>(); // just make it empty vector of results
+        }
 
         pRes = new tResources;
         pRes->nCount = 0;
@@ -575,13 +578,14 @@ LIBRARY_API int DCPCALL FsExecuteFileW(HWND MainWin, WCHAR* RemoteName, WCHAR* V
                     MAX_PATH
                 );
                 if(gRequestProc(gPluginNumber, RT_Other, (WCHAR*)u"Rclone plugin", 
-                    (WCHAR*)u"Path to rclone executable binary (e.g. rclone.exe in Windows) \n"
+                    (WCHAR*)u"Path to rclone executable binary \n"
                         "[left empty if rclone's location folder is in PATH env variable]", 
                     (WCHAR*)answear, sizeof(answear)
                 )) {
                     // save new value
                     ini.SetValue("rclone_plugin", "rclone_executable_binary_path", trim(UTF16toUTF8((WCHAR*)answear)).c_str());
                     saveSettingsToIniFile();
+                    setEnvVariables();
                 }
             }
             // path to rclone custom config file
@@ -599,6 +603,7 @@ LIBRARY_API int DCPCALL FsExecuteFileW(HWND MainWin, WCHAR* RemoteName, WCHAR* V
                     // save new value
                     ini.SetValue("rclone_plugin", "rclone_custom_config_path", trim(UTF16toUTF8((WCHAR*)answear)).c_str());
                     saveSettingsToIniFile();
+                    setEnvVariables();
                 }
             }
             // password to decrypt rclone config file
@@ -630,6 +635,7 @@ LIBRARY_API int DCPCALL FsExecuteFileW(HWND MainWin, WCHAR* RemoteName, WCHAR* V
                             ini.SetValue("rclone_plugin", "rclone_is_config_password_set", "Yes");
                         }
                         saveSettingsToIniFile();
+                        setEnvVariables();
                     }
                 }
             }
@@ -645,6 +651,7 @@ LIBRARY_API int DCPCALL FsExecuteFileW(HWND MainWin, WCHAR* RemoteName, WCHAR* V
                     ) {
                         ini.SetValue("rclone_plugin", "rclone_is_config_password_set", "No");
                         saveSettingsToIniFile();
+                        setEnvVariables();
                         gRequestProc(gPluginNumber, RT_MsgOK, (WCHAR*)u"Rclone plugin", 
                             (WCHAR*)u"Password was successfully deleted from passwords store.", NULL, 0);
                     } else {
