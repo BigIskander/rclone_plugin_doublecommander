@@ -365,13 +365,12 @@ void setEnvVariables()
     if(_wputenv_s(L"RCLONE_NO_CONSOLE", L"true") != 0)  
         gLogProc(gPluginNumber, MSGTYPE_IMPORTANTERROR, (WCHAR*)u"Failed to set RCLONE_NO_CONSOLE env variable");
     // don't ask for password, read from env variable or just fail and exit instead
-    if(_wputenv_s(L"RCLONE_ASK_PASSWORD", L"false") != 0) { 
+    if(_wputenv_s(L"RCLONE_ASK_PASSWORD", L"false") != 0) 
 #else
     // don't ask for password, read from env variable or just fail and exit instead
-    if(setenv("RCLONE_ASK_PASSWORD", "false", 1) != 0) {
+    if(setenv("RCLONE_ASK_PASSWORD", "false", 1) != 0) 
 #endif
         gLogProc(gPluginNumber, MSGTYPE_IMPORTANTERROR, (WCHAR*)u"Failed to set RCLONE_ASK_PASSWORD env variable");
-    }
     
     // read and set path to rclone executable file
     memcpy(&value, 
