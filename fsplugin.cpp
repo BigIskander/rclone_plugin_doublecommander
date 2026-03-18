@@ -79,7 +79,7 @@ LIBRARY_API HANDLE DCPCALL FsFindFirstW(WCHAR* Path, WIN32_FIND_DATAW *FindData)
 
     if(!isInit)
     {
-        // gLogProc(gPluginNumber, MSGTYPE_CONNECT, (WCHAR*)u"123");
+        gLogProc(gPluginNumber, MSGTYPE_CONNECT, (WCHAR*)u"123");
         readSettingsFromIniFile();
         setEnvVariables(); // set env variables only once
         isInit = true;
@@ -632,7 +632,8 @@ LIBRARY_API int DCPCALL FsExecuteFileW(HWND MainWin, WCHAR* RemoteName, WCHAR* V
             if(wPath == wcharstring((WCHAR*)u"/<Settings>/<2_edit_rclone_config_password>")) {
                 // read password from password's storage
                 answear[0] = '\0';
-                int ret =  gCryptProc(gPluginNumber, gCryptoNr, FS_CRYPT_LOAD_PASSWORD, (WCHAR*)L"Rclone_plugin", (WCHAR*)answear, MAX_PATH);
+                int ret =  gCryptProc(gPluginNumber, gCryptoNr, FS_CRYPT_LOAD_PASSWORD, 
+                    (WCHAR*)L"Rclone_plugin", (WCHAR*)answear, MAX_PATH);
                 if(ret == FS_FILE_OK || ret == FS_FILE_READERROR)
                 {
                     if(gRequestProc(gPluginNumber, RT_Password, (WCHAR*)u"Rclone plugin", 
@@ -641,7 +642,9 @@ LIBRARY_API int DCPCALL FsExecuteFileW(HWND MainWin, WCHAR* RemoteName, WCHAR* V
                     )) {
                         if(wcharstring((WCHAR*)answear).length() == 0) {
                             // delete password from storage if empty password
-                            if(gCryptProc(gPluginNumber, gCryptoNr, FS_CRYPT_DELETE_PASSWORD, (WCHAR*)L"Rclone_plugin",(WCHAR*)answear, MAX_PATH) != FS_FILE_OK) {
+                            if(gCryptProc(gPluginNumber, gCryptoNr, FS_CRYPT_DELETE_PASSWORD, 
+                                (WCHAR*)L"Rclone_plugin",(WCHAR*)answear, MAX_PATH) != FS_FILE_OK
+                            ) {
                                 gRequestProc(gPluginNumber, RT_MsgOK, (WCHAR*)u"Rclone plugin", 
                                     (WCHAR*)u"Failed to change password in passwords stroe.", NULL, 0);
                                 return FS_EXEC_OK;
@@ -649,7 +652,9 @@ LIBRARY_API int DCPCALL FsExecuteFileW(HWND MainWin, WCHAR* RemoteName, WCHAR* V
                             ini.SetValue("rclone_plugin", "rclone_is_config_password_set", "No");
                         } else {
                             // write new passwrod to storage or update if exists
-                            if(gCryptProc(gPluginNumber, gCryptoNr, FS_CRYPT_SAVE_PASSWORD, (WCHAR*)L"Rclone_plugin", (WCHAR*)answear, MAX_PATH) != FS_FILE_OK) {
+                            if(gCryptProc(gPluginNumber, gCryptoNr, FS_CRYPT_SAVE_PASSWORD, 
+                                (WCHAR*)L"Rclone_plugin", (WCHAR*)answear, MAX_PATH) != FS_FILE_OK
+                            ) {
                                 gRequestProc(gPluginNumber, RT_MsgOK, (WCHAR*)u"Rclone plugin", 
                                     (WCHAR*)u"Failed to change password in passwords stroe.", NULL, 0);
                                 return FS_EXEC_OK;

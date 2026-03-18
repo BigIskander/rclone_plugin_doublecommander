@@ -78,12 +78,12 @@ std::string trim(std::string value)
     return value.substr(i, j - i + 1);
 }
 
+wchar_t rcloneExePath[MAX_PATH] = L"\0";
+
 #if  defined(_WIN32) || defined(_WIN64)
 // Windows version of functions used to interact with shell
 
 #define BUFSIZE 4096 
-
-wchar_t rcloneExePath[MAX_PATH] = L"\0";
 
     struct commandOutput
     {
@@ -259,8 +259,14 @@ wchar_t rcloneExePath[MAX_PATH] = L"\0";
     // execute shell command and return stdout pipe
     std::unique_ptr<FILE, decltype(&pclose)> executeCommand(std::string commandString)
     {
-        const char* command = commandString.c_str();
-        std::unique_ptr<FILE, decltype(&pclose)> pipe(popen(command, "r"), pclose);
+        std::string command(commandString);        
+        if(wcslen(rcloneExePath) != 0) {
+            command = command
+                .substr(std::string("rclone").length())
+                .insert(0, UTF16toUTF8((WCHAR*)rcloneExePath));
+        }
+        gLogProc(gPluginNumber, MSGTYPE_CONNECT, (WCHAR*)UTF8toUTF16(command).data());
+        std::unique_ptr<FILE, decltype(&pclose)> pipe(popen(command.c_str(), "r"), pclose);
         if(!pipe) gLogProc(gPluginNumber, MSGTYPE_IMPORTANTERROR, (WCHAR*)u"C++ popen() failed.");
         return pipe;
     }
@@ -340,15 +346,17 @@ void setEnvVariables()
     wchar_t value[MAX_PATH]; // variable used to read values from settings
 
 #if defined(_WIN32) || defined(_WIN64)    
-    // don't ask for password, read from env variable or just fail and exit instead
-    if(_wputenv_s(L"RCLONE_ASK_PASSWORD", L"false") != 0)  
-        gLogProc(gPluginNumber, MSGTYPE_IMPORTANTERROR, (WCHAR*)u"Failed to set RCLONE_ASK_PASSWORD env variable");
     // no console window - Windows specific
     if(_wputenv_s(L"RCLONE_NO_CONSOLE", L"true") != 0)  
-        gLogProc(gPluginNumber, MSGTYPE_IMPORTANTERROR, (WCHAR*)u"Failed to set RCLONE_ASK_PASSWORD env variable");
+        gLogProc(gPluginNumber, MSGTYPE_IMPORTANTERROR, (WCHAR*)u"Failed to set RCLONE_NO_CONSOLE env variable");
+    // don't ask for password, read from env variable or just fail and exit instead
+    if(_wputenv_s(L"RCLONE_ASK_PASSWORD", L"false") != 0) { 
 #else
-
+    // don't ask for password, read from env variable or just fail and exit instead
+    if(setenv("RCLONE_ASK_PASSWORD", "false", 1) != 0) {
 #endif
+        gLogProc(gPluginNumber, MSGTYPE_IMPORTANTERROR, (WCHAR*)u"Failed to set RCLONE_ASK_PASSWORD env variable");
+    }
     
     // read and set path to rclone executable file
     memcpy(&value, 
@@ -363,20 +371,23 @@ void setEnvVariables()
         MAX_PATH
     );
 #if defined(_WIN32) || defined(_WIN64)
-    if(_wputenv_s(L"RCLONE_CONFIG", value) != 0)  
-        gLogProc(gPluginNumber, MSGTYPE_IMPORTANTERROR, (WCHAR*)u"Failed to set RCLONE_CONFIG env variable");
+    if(_wputenv_s(L"RCLONE_CONFIG", value) != 0) {
 #else
-
+    if(setenv("RCLONE_CONFIG", UTF16toUTF8((WCHAR*)value).data(), 1) != 0) {
 #endif
+        gLogProc(gPluginNumber, MSGTYPE_IMPORTANTERROR, (WCHAR*)u"Failed to set RCLONE_CONFIG env variable");
+    }
 
     // read from config is password necessary
     memcpy(&value, 
         UTF8toUTF16(ini.GetValue("rclone_plugin", "rclone_is_config_password_set", "No")).c_str(), 
         MAX_PATH
     );
-    if(wcharstring(value) == L"Yes") {
+    if(wcharstring((WCHAR*)value) == (WCHAR*)L"Yes") {
         // read password from password's storage
-        if(gCryptProc(gPluginNumber, gCryptoNr, FS_CRYPT_LOAD_PASSWORD, (WCHAR*)L"Rclone_plugin", (WCHAR*)value, MAX_PATH) != FS_FILE_OK) {
+        if(gCryptProc(gPluginNumber, gCryptoNr, FS_CRYPT_LOAD_PASSWORD, (WCHAR*)L"Rclone_plugin", 
+            (WCHAR*)value, MAX_PATH) != FS_FILE_OK
+        ) {
             gLogProc(gPluginNumber, MSGTYPE_IMPORTANTERROR, (WCHAR*)u"Failed to read password from password's storage");
         }
     } else {
@@ -384,11 +395,12 @@ void setEnvVariables()
     }
     // set password as env variable
 #if defined(_WIN32) || defined(_WIN64)         
-    if(_wputenv_s(L"RCLONE_CONFIG_PASS", value) != 0) 
-        gLogProc(gPluginNumber, MSGTYPE_IMPORTANTERROR, (WCHAR*)u"Failed to set RCLONE_CONFIG_PASS env variable");
+    if(_wputenv_s(L"RCLONE_CONFIG_PASS", value) != 0) {
 #else
-
+    if(setenv("RCLONE_CONFIG_PASS", UTF16toUTF8((WCHAR*)value).data(), 0) != 0) {
 #endif
+        gLogProc(gPluginNumber, MSGTYPE_IMPORTANTERROR, (WCHAR*)u"Failed to set RCLONE_CONFIG_PASS env variable");
+    }
     return;
 }
 
