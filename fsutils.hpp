@@ -265,7 +265,6 @@ wchar_t rcloneExePath[MAX_PATH] = L"\0";
                 .substr(std::string("rclone").length())
                 .insert(0, UTF16toUTF8((WCHAR*)rcloneExePath));
         }
-        gLogProc(gPluginNumber, MSGTYPE_CONNECT, (WCHAR*)UTF8toUTF16(command).data());
         std::unique_ptr<FILE, decltype(&pclose)> pipe(popen(command.c_str(), "r"), pclose);
         if(!pipe) gLogProc(gPluginNumber, MSGTYPE_IMPORTANTERROR, (WCHAR*)u"C++ popen() failed.");
         return pipe;
@@ -279,13 +278,29 @@ wchar_t rcloneExePath[MAX_PATH] = L"\0";
         if(status != 0) {
             if (WIFEXITED(status)) {
                 status = WEXITSTATUS(status);
+                std::string command(commandString);        
+                if(wcharstring((WCHAR*)rcloneExePath) != (WCHAR*)u"") {
+                    command = command
+                        .substr(std::string("rclone").length())
+                        .insert(0, UTF16toUTF8((WCHAR*)rcloneExePath));
+                }
                 // show message if error occured
-                gLogProc(gPluginNumber, MSGTYPE_IMPORTANTERROR, 
-                    (WCHAR*) wcharstring((WCHAR*)u"Command (")
-                        .append(UTF8toUTF16(commandString))
-                        .append((WCHAR*)u") exited with status ")
-                        .append(int_to_wcharstring(status)).data()
-                );
+                if(status >= 0 && status <= 10) {
+                    gLogProc(gPluginNumber, MSGTYPE_IMPORTANTERROR, 
+                        (WCHAR*) wcharstring((WCHAR*)u"Command (")
+                            .append(UTF8toUTF16(command))
+                            .append((WCHAR*)u") exited with status ")
+                            .append(int_to_wcharstring(status)).data()
+                    );
+                } else {
+                    // show message if error occured
+                    gLogProc(gPluginNumber, MSGTYPE_IMPORTANTERROR, 
+                        (WCHAR*) wcharstring((WCHAR*)u"C++ pclose(). WIFEXITED(status). Command (")
+                            .append(UTF8toUTF16(command))
+                            .append((WCHAR*)u") exited with status ")
+                            .append(int_to_wcharstring(status)).data()
+                    );
+                }
             } else {
                 // show message if error occured
                 gLogProc(gPluginNumber, MSGTYPE_IMPORTANTERROR, 
@@ -388,7 +403,7 @@ void setEnvVariables()
         UTF8toUTF16(ini.GetValue("rclone_plugin", "rclone_is_config_password_set", "No")).c_str(), 
         MAX_PATH
     );
-    if(wcharstring((WCHAR*)value) == (WCHAR*)L"Yes") {
+    if(wcharstring((WCHAR*)value) == (WCHAR*)u"Yes") {
         // read password from password's storage
         if(gCryptProc(gPluginNumber, gCryptoNr, FS_CRYPT_LOAD_PASSWORD, (WCHAR*)L"Rclone_plugin", 
             (WCHAR*)value, MAX_PATH) != FS_FILE_OK
@@ -404,7 +419,7 @@ void setEnvVariables()
         gLogProc(gPluginNumber, MSGTYPE_IMPORTANTERROR, (WCHAR*)u"Failed to set RCLONE_CONFIG_PASS env variable");
 #else
     if(wcharstring((WCHAR*)value) != (WCHAR*)u"") {
-        if(setenv("RCLONE_CONFIG_PASS", UTF16toUTF8((WCHAR*)value).data(), 0) != 0)
+        if(setenv("RCLONE_CONFIG_PASS", UTF16toUTF8((WCHAR*)value).data(), 1) != 0)
             gLogProc(gPluginNumber, MSGTYPE_IMPORTANTERROR, (WCHAR*)u"Failed to set RCLONE_CONFIG_PASS env variable");
     } else {
         if(unsetenv("RCLONE_CONFIG_PASS") != 0) 

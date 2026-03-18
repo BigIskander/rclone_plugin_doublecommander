@@ -79,7 +79,7 @@ LIBRARY_API HANDLE DCPCALL FsFindFirstW(WCHAR* Path, WIN32_FIND_DATAW *FindData)
 
     if(!isInit)
     {
-        gLogProc(gPluginNumber, MSGTYPE_CONNECT, (WCHAR*)u"123");
+        // gLogProc(gPluginNumber, MSGTYPE_CONNECT, (WCHAR*)u"123");
         readSettingsFromIniFile();
         setEnvVariables(); // set env variables only once
         isInit = true;
