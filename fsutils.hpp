@@ -479,17 +479,37 @@ PathFolderElement* getFolderCache(wcharstring folder)
 PathFolderElement* addFolderToCache(wcharstring folderPath) {
     if(folderPath.length() == 0) return NULL;
     if(folderPath == (WCHAR*)u"/") return NULL;
-    // request list of items in folder as vector
+    // request list of items in folder as JSON string
     std::string commandString = UTF16toUTF8(
-            wcharstring((WCHAR*)u"rclone lsf ").append(sanitize(folderPath.substr(1))).data()
+            wcharstring((WCHAR*)u"rclone lsjson ").append(sanitize(folderPath.substr(1))).data()
         );
-    std::vector<wcharstring> resultVector;
-    if(!executeCommandAndReturnVector(commandString, resultVector)) return NULL;
+    std::string resultString;
+    if(!executeCommandAndReturnString(commandString, resultString)) return NULL;
 
+    // parse Json string and convert to vector of individual items
+    std::vector<wcharstring> elementsCache;
+    try
+    {
+        nlohmann::json resultJson = nlohmann::json::parse(resultString);
+        std::for_each(
+            resultJson.begin(), 
+            resultJson.end(), 
+            [&elementsCache](nlohmann::json &resultLine) {
+                elementsCache.push_back(UTF8toUTF16(resultLine["Name"]));
+            }
+        );
+    }
+    catch(const std::exception& e)
+    {
+        // return NULL if failed to parse JSON
+        gLogProc(gPluginNumber, MSGTYPE_DETAILS, (WCHAR*) UTF8toUTF16(e.what()).data());
+        return NULL;
+    }
+    
     // add new element to cache and return reference
     PathFolderElement newCache;
     newCache.path = folderPath;
-    newCache.elementsCache = resultVector;
+    newCache.elementsCache = elementsCache;
     cacheOfFolders.push_back(newCache);
     return &(cacheOfFolders.back());
 }
