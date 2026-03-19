@@ -317,9 +317,9 @@ LIBRARY_API int DCPCALL FsPutFileW(WCHAR* LocalName, WCHAR* RemoteName, int Copy
         return FS_FILE_NOTSUPPORTED;
 
     // this hint is never sent
-    if(((CopyFlags & FS_COPYFLAGS_EXISTS_SAMECASE) || (CopyFlags & FS_COPYFLAGS_EXISTS_DIFFERENTCASE)) 
-            && !(CopyFlags & FS_COPYFLAGS_OVERWRITE))  
-        return FS_FILE_EXISTS;
+    // if(((CopyFlags & FS_COPYFLAGS_EXISTS_SAMECASE) || (CopyFlags & FS_COPYFLAGS_EXISTS_DIFFERENTCASE)) 
+    //         && !(CopyFlags & FS_COPYFLAGS_OVERWRITE))  
+    //     return FS_FILE_EXISTS;
     
     wcharstring wPath(RemoteName), folderPath, fileName, wLocal(LocalName);
     if(wPath.length() == 0 || wLocal.length() == 0) return FS_FILE_OK; // just ignore this case
@@ -389,9 +389,6 @@ LIBRARY_API int DCPCALL FsRenMovFileW(
     if(wPathNew == wcharstring((WCHAR*)u"/").append(fileNameNew))
         return FS_FILE_NOTSUPPORTED;
 
-    if(gProgressProc(gPluginNumber, OldName, NewName, 0) != 0) 
-        return FS_FILE_USERABORT;
-
     // get cache if cache exists otherwise make cache
     getFolderPath(wPathNew, folderPathNew);
     PathFolderElement* cache = getFolderCache(folderPathNew);
@@ -403,6 +400,9 @@ LIBRARY_API int DCPCALL FsRenMovFileW(
         if(!OverWrite)
             return FS_FILE_EXISTS;
     }
+
+    if(gProgressProc(gPluginNumber, OldName, NewName, 0) != 0) 
+        return FS_FILE_USERABORT;
 
     // move or copy file from to (replaces file if already exists)
     std::string commandString;
@@ -646,7 +646,7 @@ LIBRARY_API int DCPCALL FsExecuteFileW(HWND MainWin, WCHAR* RemoteName, WCHAR* V
                                 (WCHAR*)L"Rclone_plugin",(WCHAR*)answear, MAX_PATH) != FS_FILE_OK
                             ) {
                                 gRequestProc(gPluginNumber, RT_MsgOK, (WCHAR*)u"Rclone plugin", 
-                                    (WCHAR*)u"Failed to change password in passwords stroe.", NULL, 0);
+                                    (WCHAR*)u"Failed to change password in passwords store.", NULL, 0);
                                 return FS_EXEC_OK;
                             }
                             ini.SetValue("rclone_plugin", "rclone_is_config_password_set", "No");
@@ -656,7 +656,7 @@ LIBRARY_API int DCPCALL FsExecuteFileW(HWND MainWin, WCHAR* RemoteName, WCHAR* V
                                 (WCHAR*)L"Rclone_plugin", (WCHAR*)answear, MAX_PATH) != FS_FILE_OK
                             ) {
                                 gRequestProc(gPluginNumber, RT_MsgOK, (WCHAR*)u"Rclone plugin", 
-                                    (WCHAR*)u"Failed to change password in passwords stroe.", NULL, 0);
+                                    (WCHAR*)u"Failed to change password in passwords store.", NULL, 0);
                                 return FS_EXEC_OK;
                             }
                             ini.SetValue("rclone_plugin", "rclone_is_config_password_set", "Yes");
@@ -669,7 +669,7 @@ LIBRARY_API int DCPCALL FsExecuteFileW(HWND MainWin, WCHAR* RemoteName, WCHAR* V
             // workaround because empty string password "" can cause errors sometimes
             if(wPath == wcharstring((WCHAR*)u"/<Settings>/<3_delete_rclone_config_password>")) {
                 if(gRequestProc(gPluginNumber, RT_MsgYesNo, (WCHAR*)u"Rclone plugin", 
-                    (WCHAR*)u"Delete password, used to decrypt rclone config file, from passord's storage?", 
+                    (WCHAR*)u"Delete password, used to decrypt rclone config file, from passwords storage?", 
                     NULL, 0
                 )) {
                     // delete password from storage
@@ -683,7 +683,7 @@ LIBRARY_API int DCPCALL FsExecuteFileW(HWND MainWin, WCHAR* RemoteName, WCHAR* V
                             (WCHAR*)u"Password was successfully deleted from passwords store.", NULL, 0);
                     } else {
                         gRequestProc(gPluginNumber, RT_MsgOK, (WCHAR*)u"Rclone plugin", 
-                            (WCHAR*)u"Failed to delete password from passwords stroe.", NULL, 0);
+                            (WCHAR*)u"Failed to delete password from passwords store.", NULL, 0);
                     }
                 }
             }

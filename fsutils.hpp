@@ -407,7 +407,7 @@ void setEnvVariables()
         if(gCryptProc(gPluginNumber, gCryptoNr, FS_CRYPT_LOAD_PASSWORD, (WCHAR*)L"Rclone_plugin", 
             (WCHAR*)value, MAX_PATH) != FS_FILE_OK
         ) {
-            gLogProc(gPluginNumber, MSGTYPE_IMPORTANTERROR, (WCHAR*)u"Failed to read password from password's storage");
+            gLogProc(gPluginNumber, MSGTYPE_IMPORTANTERROR, (WCHAR*)u"Failed to read password from passwords storage");
         }
     } else {
         memcpy(&value, L"", MAX_PATH);
@@ -428,8 +428,8 @@ void setEnvVariables()
     return;
 }
 
-// variables and function to manage cache
-std::vector<wcharstring> busyFolders;
+// variables and functions to manage cache
+// std::vector<wcharstring> busyFolders;
 
 struct PathFolderElement
 {
