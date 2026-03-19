@@ -213,10 +213,10 @@ wchar_t rcloneExePath[MAX_PATH] = L"\0";
         {
             if(dwRead == 0) break;
             std::string s(chBuf, dwRead);
-            wcharstring itemName = UTF8toUTF16(s);
-            if(std::isspace(itemName.at(itemName.size() - 1))) // delete last element if it is space
-                itemName = itemName.substr(0, itemName.size() - 1);
-            resultVector.push_back(itemName);
+            int i; // delete empty spaces in the end of the line, to make it more robust
+            for(i = s.length() - 1; i >= 0; i--)
+                if(s.at(i) == ':') break; // ':' because this function only used for "rclone listremotes" command
+            resultVector.push_back(UTF8toUTF16(s.substr(0, i + 1)));
         }
         // exit process
         if(exitProcess(output, commandString) != 0) return false;
