@@ -274,7 +274,7 @@ LIBRARY_API void DCPCALL FsGetDefRootName(char* DefRootName, int maxlen)
 
 LIBRARY_API int DCPCALL FsGetFileW(WCHAR* RemoteName, WCHAR* LocalName, int CopyFlags, RemoteInfoStruct* ri)
 {
-    if ((CopyFlags & FS_COPYFLAGS_RESUME) || (CopyFlags & FS_COPYFLAGS_MOVE)) 
+    if (CopyFlags & FS_COPYFLAGS_RESUME) 
         return FS_FILE_NOTSUPPORTED; // resume copy and move not supported
 
     wcharstring wPath(RemoteName), fileName, wLocal(LocalName);
@@ -299,13 +299,23 @@ LIBRARY_API int DCPCALL FsGetFileW(WCHAR* RemoteName, WCHAR* LocalName, int Copy
     if(gProgressProc(gPluginNumber, RemoteName, LocalName, 0) != 0) 
         return FS_FILE_USERABORT;
 
-    // copy file from to (replaces file if already exists)
-    std::string commandString = UTF16toUTF8(
+    std::string commandString;
+    if(CopyFlags & FS_COPYFLAGS_MOVE) {
+        commandString = UTF16toUTF8(
+                wcharstring((WCHAR*)u"rclone moveto ") // move
+                    .append(sanitize(wPath.substr(1))) // from
+                    .append((WCHAR*)u" ")
+                    .append(sanitize(wLocal.substr(1))).data() // to
+            ); // move if move flag sent (this flag sent only in Total Commander)
+    } else {
+        // copy file from to (replaces file if already exists)
+        commandString = UTF16toUTF8(
             wcharstring((WCHAR*)u"rclone copyto ") // copy
                 .append(sanitize(wPath.substr(1))) // from
                 .append((WCHAR*)u" ")
                 .append(sanitize(wLocal)).data() // to
         );
+    }
     if(!executeCommand2(commandString)) return FS_FILE_WRITEERROR;
 
     gProgressProc(gPluginNumber, RemoteName, LocalName, 100);
@@ -313,7 +323,7 @@ LIBRARY_API int DCPCALL FsGetFileW(WCHAR* RemoteName, WCHAR* LocalName, int Copy
 }
 
 LIBRARY_API int DCPCALL FsPutFileW(WCHAR* LocalName, WCHAR* RemoteName, int CopyFlags) {
-    if ((CopyFlags & FS_COPYFLAGS_RESUME) || (CopyFlags & FS_COPYFLAGS_MOVE))
+    if (CopyFlags & FS_COPYFLAGS_RESUME)
         return FS_FILE_NOTSUPPORTED;
 
     // this hint is never sent
@@ -351,13 +361,23 @@ LIBRARY_API int DCPCALL FsPutFileW(WCHAR* LocalName, WCHAR* RemoteName, int Copy
             return FS_FILE_EXISTS;
     }
 
-    // copy file from to (replaces file if already exists)
-    std::string commandString = UTF16toUTF8(
-            wcharstring((WCHAR*)u"rclone copyto ") // copy
-                .append(sanitize(wLocal)) // from
+    std::string commandString;
+    if(CopyFlags & FS_COPYFLAGS_MOVE) {
+        commandString = UTF16toUTF8(
+            wcharstring((WCHAR*)u"rclone moveto ") // move
+                .append(sanitize(wLocal.substr(1))) // from
                 .append((WCHAR*)u" ")
                 .append(sanitize(wPath.substr(1))).data() // to
-        );
+        ); // move if move flag sent (this flag sent only in Total Commander)
+    } else {
+        // copy file from to (replaces file if already exists)
+        commandString = UTF16toUTF8(
+                wcharstring((WCHAR*)u"rclone copyto ") // copy
+                    .append(sanitize(wLocal)) // from
+                    .append((WCHAR*)u" ")
+                    .append(sanitize(wPath.substr(1))).data() // to
+            );
+    }
     if(!executeCommand2(commandString)) return FS_FILE_WRITEERROR;
 
     gProgressProc(gPluginNumber, LocalName, RemoteName, 100); 
