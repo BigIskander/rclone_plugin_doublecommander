@@ -274,8 +274,8 @@ LIBRARY_API void DCPCALL FsGetDefRootName(char* DefRootName, int maxlen)
 
 LIBRARY_API int DCPCALL FsGetFileW(WCHAR* RemoteName, WCHAR* LocalName, int CopyFlags, RemoteInfoStruct* ri)
 {
-    if(CopyFlags & FS_COPYFLAGS_RESUME) // resume copy not supported
-        return FS_FILE_NOTSUPPORTED;
+    if ((CopyFlags & FS_COPYFLAGS_RESUME) || (CopyFlags & FS_COPYFLAGS_MOVE)) 
+        return FS_FILE_NOTSUPPORTED; // resume copy and move not supported
 
     wcharstring wPath(RemoteName), fileName, wLocal(LocalName);
     if(wPath.length() == 0 || wLocal.length() == 0) return FS_FILE_OK; // just ignore this case
@@ -313,7 +313,7 @@ LIBRARY_API int DCPCALL FsGetFileW(WCHAR* RemoteName, WCHAR* LocalName, int Copy
 }
 
 LIBRARY_API int DCPCALL FsPutFileW(WCHAR* LocalName, WCHAR* RemoteName, int CopyFlags) {
-    if (CopyFlags & FS_COPYFLAGS_RESUME)
+    if ((CopyFlags & FS_COPYFLAGS_RESUME) || (CopyFlags & FS_COPYFLAGS_MOVE))
         return FS_FILE_NOTSUPPORTED;
 
     // this hint is never sent
