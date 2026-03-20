@@ -38,16 +38,17 @@ typedef struct {
 
 typedef std::basic_string<WCHAR> wcharstring;
 
-FILETIME get_now_time()
-{
-    time_t t2 = time(0);
-    int64_t ft = (int64_t) t2 * 10000000 + 116444736000000000;
-    FILETIME file_time;
-    // deleted: &0xffff - it causes time shift to ~5 min
-    file_time.dwLowDateTime = ft;
-    file_time.dwHighDateTime = ft >> 32;
-    return file_time;
-}
+// function to get current time (this function is not used)
+// FILETIME get_now_time()
+// {
+//     time_t t2 = time(0);
+//     int64_t ft = (int64_t) t2 * 10000000 + 116444736000000000;
+//     FILETIME file_time;
+//     // deleted: &0xffff - it causes time shift to ~5 min
+//     file_time.dwLowDateTime = ft;
+//     file_time.dwHighDateTime = ft >> 32;
+//     return file_time;
+// }
 
 // add function converting RFC3339 standard time sting to FILETIME
 FILETIME get_file_time(std::string tm)
@@ -83,18 +84,23 @@ wcharstring UTF8toUTF16(const std::string &str)
 
 BOOL file_exists(const std::string& filename)
 {
+#if defined(_WIN32) || defined(_WIN64)
+    struct _stat buf;
+    return _wstat(UTF8toUTF16(filename).c_str(), &buf) == 0;
+#else
     struct stat buf;
     return stat(filename.c_str(), &buf) == 0;
+#endif
 }
 
-// add function to gel local file size
-BOOL get_file_size(const std::string& filename, uint64_t& fileSize)
-{
-    struct stat buf;
-    if(stat(filename.c_str(), &buf) != 0) return false;
-    fileSize = buf.st_size;
-    return true;
-}
+// add function to gel local file size (this function is not used)
+// BOOL get_file_size(const std::string& filename, uint64_t& fileSize)
+// {
+//     struct stat buf;
+//     if(stat(filename.c_str(), &buf) != 0) return false;
+//     fileSize = buf.st_size;
+//     return true;
+// }
 
 // add function to convert int to wcharstring
 wcharstring int_to_wcharstring(int num) 
