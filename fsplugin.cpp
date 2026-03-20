@@ -305,7 +305,7 @@ LIBRARY_API int DCPCALL FsGetFileW(WCHAR* RemoteName, WCHAR* LocalName, int Copy
                 wcharstring((WCHAR*)u"rclone moveto ") // move
                     .append(sanitize(wPath.substr(1))) // from
                     .append((WCHAR*)u" ")
-                    .append(sanitize(wLocal.substr(1))).data() // to
+                    .append(sanitize(wLocal)).data() // to
             ); // move if move flag sent (this flag sent only in Total Commander)
     } else {
         // copy file from to (replaces file if already exists)
@@ -365,7 +365,7 @@ LIBRARY_API int DCPCALL FsPutFileW(WCHAR* LocalName, WCHAR* RemoteName, int Copy
     if(CopyFlags & FS_COPYFLAGS_MOVE) {
         commandString = UTF16toUTF8(
             wcharstring((WCHAR*)u"rclone moveto ") // move
-                .append(sanitize(wLocal.substr(1))) // from
+                .append(sanitize(wLocal)) // from
                 .append((WCHAR*)u" ")
                 .append(sanitize(wPath.substr(1))).data() // to
         ); // move if move flag sent (this flag sent only in Total Commander)
