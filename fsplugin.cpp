@@ -53,7 +53,6 @@ LIBRARY_API int DCPCALL FsInitW(
 
 bool isInit = false;
 bool isPut = false;
-
 wcharstring settingsPage = (WCHAR*)u"/<Settings>";
 
 LIBRARY_API HANDLE DCPCALL FsFindFirstW(WCHAR* Path, WIN32_FIND_DATAW *FindData)
@@ -551,7 +550,8 @@ LIBRARY_API void DCPCALL FsStatusInfoW(WCHAR* RemoteDir, int InfoStartEnd, int I
     // Just ignore if it is settings page
     if(wPath.substr(0, settingsPage.length()) == wcharstring((WCHAR*)u"/<Settings>")) return;
     // put file or files
-    if(InfoOperation == FS_STATUS_OP_PUT_SINGLE || InfoOperation == FS_STATUS_OP_PUT_MULTI)
+    if(InfoOperation == FS_STATUS_OP_PUT_SINGLE || InfoOperation == FS_STATUS_OP_PUT_MULTI 
+        || InfoOperation == FS_STATUS_OP_PUT_MULTI_THREAD)
     {
         if(InfoStartEnd == FS_STATUS_START) 
         {
