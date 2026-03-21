@@ -59,17 +59,27 @@ FILETIME get_file_time(std::string tm)
     ss >> std::get_time(&t, "%Y-%m-%dT%H:%M:%S");
     t.tm_isdst = 0; // turn off Daylight Saving Time flag because it causes timeshift to 1 hour im macOS
     time_t ttime = std::mktime(const_cast<std::tm*>(&t));
-    // adjust time_t for timezone if necessary (this adjustment is not necessary)
-    // int pos = tm.find_last_of("Z+-");
-    // if(pos != tm.npos) {
-    //     if(tm.at(pos) != 'Z') {
-    //         if(tm.length() >= pos + 3) {
-    //             int hours = std::stoi(tm.substr(pos + 1, 2));
-    //             if(tm.at(pos) == '+') ttime += hours * 3600; // i.e. 3600 - seconds in 1 hour
-    //             else ttime -= hours * 3600;
-    //         }
-    //     }
-    // }
+    // adjust time_t for timezone if necessary
+    // get current timezone
+    // https://codereview.stackexchange.com/questions/175353/getting-current-timezone
+    time_t timeShiftLocal = 0, timeShiftRemote = 0;
+    std::time_t now = std::time(NULL);
+    std::time_t local = std::mktime(std::localtime(&now));
+    std::time_t gmt = std::mktime(std::gmtime(&now));
+    timeShiftLocal = static_cast<long> (local - gmt);
+    // get timezone of the file or folder
+    int pos = tm.find_last_of("Z+-");
+    if(pos != tm.npos) {
+        if(tm.at(pos) != 'Z') {
+            if(tm.length() >= pos + 3) {
+                int hours = std::stoi(tm.substr(pos + 1, 2));
+                if(tm.at(pos) == '+') timeShiftRemote = hours * 3600; // i.e. 3600 - seconds in 1 hour
+                else timeShiftRemote = hours * 3600;
+            }
+        }
+    }
+    // adjust time_t to differences in timezones
+    ttime += (timeShiftLocal - timeShiftRemote);
     // convert time_t to FILETIME
     int64_t ft = (int64_t) ttime * 10000000 + 116444736000000000;
     FILETIME file_time;
