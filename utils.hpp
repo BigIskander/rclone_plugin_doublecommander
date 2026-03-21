@@ -55,9 +55,20 @@ FILETIME get_file_time(std::string tm)
 {
     // convert std::string to time_t
     std::tm t;
-    std::istringstream ss(tm);
+    std::istringstream ss(tm.substr(0, 19)); // parse time part (without timezone)
     ss >> std::get_time(&t, "%Y-%m-%dT%H:%M:%S");
     time_t ttime = std::mktime(const_cast<std::tm*>(&t));
+    // adjust time_t for timezone if necessary
+    int pos = tm.find_last_of("Z+-");
+    if(pos != tm.npos) {
+        if(tm.at(pos) != 'Z') {
+            if(tm.length() >= pos + 3) {
+                int hours = std::stoi(tm.substr(pos + 1, 2));
+                if(tm.at(pos) == '+') ttime += hours * 3600; // i.e. 3600 - seconds in 1 hour
+                else ttime -= hours * 3600;
+            }
+        }
+    }
     // convert time_t to FILETIME
     int64_t ft = (int64_t) ttime * 10000000 + 116444736000000000;
     FILETIME file_time;
