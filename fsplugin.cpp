@@ -625,7 +625,8 @@ LIBRARY_API int DCPCALL FsExecuteFileW(HWND MainWin, WCHAR* RemoteName, WCHAR* V
                     (WCHAR*)answear, sizeof(answear)
                 )) {
                     // save new value
-                    ini.SetValue("rclone_plugin", "rclone_executable_binary_path", trim(UTF16toUTF8((WCHAR*)answear)).c_str());
+                    ini.SetValue("rclone_plugin", "rclone_executable_binary_path", 
+                        trim(UTF16toUTF8((WCHAR*)answear)).c_str());
                     saveSettingsToIniFile();
                     setEnvVariables();
                 }
@@ -643,7 +644,8 @@ LIBRARY_API int DCPCALL FsExecuteFileW(HWND MainWin, WCHAR* RemoteName, WCHAR* V
                     (WCHAR*)answear, sizeof(answear)
                 )) {
                     // save new value
-                    ini.SetValue("rclone_plugin", "rclone_custom_config_path", trim(UTF16toUTF8((WCHAR*)answear)).c_str());
+                    ini.SetValue("rclone_plugin", "rclone_custom_config_path", 
+                        trim(UTF16toUTF8((WCHAR*)answear)).c_str());
                     saveSettingsToIniFile();
                     setEnvVariables();
                 }
@@ -657,7 +659,8 @@ LIBRARY_API int DCPCALL FsExecuteFileW(HWND MainWin, WCHAR* RemoteName, WCHAR* V
                 if(ret == FS_FILE_OK || ret == FS_FILE_READERROR)
                 {
                     if(gRequestProc(gPluginNumber, RT_Password, (WCHAR*)u"Rclone plugin", 
-                        (WCHAR*)u"Password used to decrypt rclone config file \n[left empty if config file is unencrypted]", 
+                        (WCHAR*)u"Password used to decrypt rclone config file \n"
+                            "[left empty if config file is unencrypted]", 
                         (WCHAR*)answear, sizeof(answear)
                     )) {
                         if(wcharstring((WCHAR*)answear).length() == 0) {
@@ -740,9 +743,16 @@ LIBRARY_API void DCPCALL FsSetDefaultParams(FsDefaultParamStruct* dps)
     }
 }
 
+// to use passrods storage
 LIBRARY_API void DCPCALL FsSetCryptCallbackW(tCryptProcW pCryptProc, int CryptProc, int Flags)
 {
     gCryptProc = pCryptProc;
     gCryptoNr = CryptProc;
     gCryptFlags = Flags;
+}
+
+// allow background download and upload
+LIBRARY_API int DCPCALL FsGetBackgroundFlags(void)
+{
+    return BG_DOWNLOAD | BG_UPLOAD;
 }
