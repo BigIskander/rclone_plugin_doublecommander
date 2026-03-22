@@ -117,9 +117,9 @@ LIBRARY_API HANDLE DCPCALL FsFindFirstW(WCHAR* Path, WIN32_FIND_DATAW *FindData)
         // add settings item
         memcpy(
             pRes->resource_array[resultVector.size()].cFileName, 
-            (WCHAR*)u"<Settings>", 
-            MAX_PATH
+            (WCHAR*)u"<Settings>", MAX_PATH
         );
+        pRes->resource_array[resultVector.size()].ftLastWriteTime = get_empty_time();
 
     } else if(wPath == (WCHAR*)u"/<Settings>") {
         // show settings page
@@ -129,24 +129,24 @@ LIBRARY_API HANDLE DCPCALL FsFindFirstW(WCHAR* Path, WIN32_FIND_DATAW *FindData)
         // settings menu kinda
         memcpy(
             pRes->resource_array[0].cFileName, 
-            (WCHAR*)u"<0_edit_rclone_executable_binary_path>", 
-            MAX_PATH
+            (WCHAR*)u"<0_edit_rclone_executable_binary_path>", MAX_PATH
         );
+        pRes->resource_array[0].ftLastWriteTime = get_empty_time();
         memcpy(
             pRes->resource_array[1].cFileName, 
-            (WCHAR*)u"<1_edit_rclone_custom_config_path>", 
-            MAX_PATH
+            (WCHAR*)u"<1_edit_rclone_custom_config_path>", MAX_PATH
         );
+        pRes->resource_array[1].ftLastWriteTime = get_empty_time();
         memcpy(
             pRes->resource_array[2].cFileName, 
-            (WCHAR*)u"<2_edit_rclone_config_password>", 
-            MAX_PATH
+            (WCHAR*)u"<2_edit_rclone_config_password>", MAX_PATH
         );
+        pRes->resource_array[2].ftLastWriteTime = get_empty_time();
         memcpy(
             pRes->resource_array[3].cFileName, 
-            (WCHAR*)u"<3_delete_rclone_config_password>", 
-            MAX_PATH
+            (WCHAR*)u"<3_delete_rclone_config_password>", MAX_PATH
         );
+        pRes->resource_array[3].ftLastWriteTime = get_empty_time();
 
     } else {
         // request list of items in folder of cloud storage (in json format)
