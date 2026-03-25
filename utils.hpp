@@ -74,7 +74,7 @@ FILETIME get_file_time(std::string tm)
             if(tm.length() >= pos + 3) {
                 int hours = std::stoi(tm.substr(pos + 1, 2));
                 if(tm.at(pos) == '+') timeShiftRemote = hours * 3600; // i.e. 3600 - seconds in 1 hour
-                else timeShiftRemote = hours * 3600;
+                else timeShiftRemote = (-1) * hours * 3600;
             }
         }
     }
