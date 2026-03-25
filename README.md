@@ -12,7 +12,8 @@ Plugin allows Double Commander (or Total Commander) to interact with files locat
 
 ### 1. Install and configure Rclone:
 
-Examples how you can install and configure Rclone in different operating systems.
+<details>
+<summary>Examples how you can install and configure Rclone in different operating systems.</summary>
 
 #### In Windows operating system
 
@@ -29,23 +30,34 @@ Examples how you can install and configure Rclone in different operating systems
 1. Install Rclone via your Linux version's package manager, for exampe, for distrebutions based on Debian: `sudo apt install rclone` .
 2. In command line execute `rclone config` command and by following suggestions configure cloud storages.
 
+</details>
+
 ### 2. Add plugin in Double Commander (or Total Commander)
 
-#### Instruction for Double Commander
+<details>
+<summary>Instruction for Double Commander</summary>
 
 1. Download plugin (file *.wfx64) from Releases page of this repository or get this file by compiling plugin from source code.
 2. In Double Commander open settings window: ***Configuration > Options***
 3. In settings window in side menu select ***Plugins WFX***
 4. Click ***Add*** button and choose path to plugin file (file with **.wfx64** extension).
 
-#### Instruction for Total Commander
+</details>
+
+<details>
+<summary>Instruction for Total Commander</summary>
 
 1. Download plugin (file *.wfx64) from Releases page of this repository or get this file by compiling plugin from source code.
 2. In Total Commander open settings window: ***Configuration > Options***
 3. In settings window in side menu select ***Plugins***
 4. In ***File system pluginx(.WFX)*** menu item click ***Configure*** button, then in new window click ***Add*** button and choose path to file plugin (file with **.wfx64** extension). 
 
+</details>
+
 ### 3. Configure plugin
+
+<details>
+<summary>Examples how you can configure plugin in different operating systems.</summary>
 
 1. In Double Commander open **//** (**Open VFS list**) tab. In **vfs:** tab open **Rclone** folder. Similarly in Total Commander from drop down menu choose **Network Neighborhood** item, then, open **Rclone** folder.
 
@@ -67,6 +79,8 @@ Next (number 3) item in this istruction is the same for all operating systems.
 
 3. Return back to plugin's root folder (by double clicking **..** item). If everything is configured correctly, then alongside with item **&lt;Settings&gt;** you should see list of cloud storages (as separate folders), which was configured in Rclone earlier.
 
+</details>
+
 ## How to use
 
 In Double Commander open **//** (**Open VFS list**) tab. In **vfs:** tab open **Rclone** folder. Similarly in Total Commander from drop down menu choose **Network Neighborhood** item, then, open **Rclone** folder.
@@ -77,7 +91,8 @@ If earlier everything was configured correctly, then in plugin's root folder you
 
 Instructions differs depending on operating system.
 
-### In Windows
+<details>
+<summary>In Windows</summary>
 
 To compile the plugin, MSVC compiler is used. To compile the plugin you need to:
 
@@ -87,7 +102,10 @@ To compile the plugin, MSVC compiler is used. To compile the plugin you need to:
     ./compile.bat
     ```
 
-### In macOS
+</details>
+
+<details>
+<summary>In macOS</summary>
 
 To compile the plugin, clang++ compiler included in Xcode Command Line Developer Tools is used. To compile the plugin you need to:
 
@@ -101,7 +119,10 @@ To compile the plugin, clang++ compiler included in Xcode Command Line Developer
     ./compile.sh
     ```
 
-### In Linux
+</details>
+
+<details>
+<summary>In Linux</summary>
 
 To compile the plugin, clang++ compiler is used. To compile the plugin you need to:
 
@@ -114,4 +135,6 @@ To compile the plugin, clang++ compiler is used. To compile the plugin you need 
     chmod +x compile.sh
     ./compile.sh
     ```
+
+</details>
 
