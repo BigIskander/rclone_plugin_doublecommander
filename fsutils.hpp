@@ -578,7 +578,7 @@ std::vector<int> putThreads;
 int getThreadId()
 {
 #if defined(_WIN32) || defined(_WIN64)
-    return 0; // not implemented for Windows yet
+    return GetCurrentThreadId(); // function from win32 api
 #else
     // example from: https://en.cppreference.com/w/cpp/thread/thread/id/hash
     return (int)hasher(std::this_thread::get_id());

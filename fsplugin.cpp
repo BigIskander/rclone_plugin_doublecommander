@@ -227,6 +227,10 @@ LIBRARY_API HANDLE DCPCALL FsFindFirstW(WCHAR* Path, WIN32_FIND_DATAW *FindData)
 
     if(!pRes || pRes->resource_array.size()==0)
     {
+        if(pRes) { // to release memory
+            pRes->resource_array.clear();
+            delete pRes;
+        }
         #if  defined(_WIN32) || defined(_WIN64)
             SetLastError(ERROR_NO_MORE_FILES);
         #endif
