@@ -568,4 +568,56 @@ void saveSettingsToIniFile()
     };
 }
 
+// functions to support multithreading
+std::vector<int> putThreads;
+#if defined(_WIN32) || defined(_WIN64)
+#else
+    std::hash<std::thread::id> hasher;
+#endif
+
+int getThreadId()
+{
+#if defined(_WIN32) || defined(_WIN64)
+    return 0; // not implemented for Windows yet
+#else
+    // example from: https://en.cppreference.com/w/cpp/thread/thread/id/hash
+    return (int)hasher(std::this_thread::get_id());
+#endif
+}
+
+void removePutThread()
+{
+    int id = getThreadId();
+    putThreads.erase(
+        std::remove_if(
+            putThreads.begin(),
+            putThreads.end(),
+            [id](const int &putId) {
+                return id == putId;
+            }
+        ),
+        putThreads.end()
+    );
+}
+
+bool isThreadIdInPut()
+{
+    int id = getThreadId();
+    auto it = std::find_if(
+        putThreads.begin(),
+        putThreads.end(),
+        [id](const int &putId) {
+            return id == putId;
+        }
+    );
+    if(it == putThreads.end()) return false;
+    return true;
+}
+
+void addPutThread()
+{
+    if(!isThreadIdInPut())
+        putThreads.push_back(getThreadId());
+}
+
 #endif

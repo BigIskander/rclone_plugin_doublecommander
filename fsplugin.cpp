@@ -31,6 +31,7 @@ License along with this library; if not, write to the Free Software
 #include <array>
 #include <algorithm>
 #include <memory>
+#include <thread>
 #include "common.h"
 #include "fsplugin.h"
 #include "utils.hpp"
@@ -52,7 +53,6 @@ LIBRARY_API int DCPCALL FsInitW(
 }
 
 bool isInit = false;
-bool isPut = false;
 wcharstring settingsPage = (WCHAR*)u"/<Settings>";
 
 LIBRARY_API HANDLE DCPCALL FsFindFirstW(WCHAR* Path, WIN32_FIND_DATAW *FindData)
@@ -68,7 +68,7 @@ LIBRARY_API HANDLE DCPCALL FsFindFirstW(WCHAR* Path, WIN32_FIND_DATAW *FindData)
     {
         wPath = wPath.substr(0, wPath.size() - 1);
         // ignore this kind of request when put files, for speed
-        if(isPut) {
+        if(isThreadIdInPut()) {
             #if  defined(_WIN32) || defined(_WIN64)
                 SetLastError(ERROR_NO_MORE_FILES);
             #endif
@@ -560,13 +560,13 @@ LIBRARY_API void DCPCALL FsStatusInfoW(WCHAR* RemoteDir, int InfoStartEnd, int I
     {
         if(InfoStartEnd == FS_STATUS_START) 
         {
-            isPut = true;
+            addPutThread();
             cacheOfFolders.clear();
             addFolderToCache(wPath);
         }  
         if(InfoStartEnd == FS_STATUS_END) 
         {
-            isPut = false;
+            removePutThread();
         }
     }
     // ren move file or folder
