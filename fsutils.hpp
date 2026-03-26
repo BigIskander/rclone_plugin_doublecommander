@@ -430,11 +430,19 @@ void setEnvVariables()
 
 // variables and functions to manage cache
 // std::vector<wcharstring> busyFolders;
+struct itemsCacheElement {
+    wcharstring itemName; 
+    bool isFolder;
+    itemsCacheElement(wcharstring itemName, bool isFolder) {
+        this->itemName = itemName;
+        this->isFolder = isFolder;
+    }
+};
 
 struct PathFolderElement
 {
     wcharstring path;
-    std::vector<wcharstring> elementsCache;
+    std::vector<itemsCacheElement> elementsCache;
 };
 
 std::vector<PathFolderElement> cacheOfFolders;
@@ -487,7 +495,7 @@ PathFolderElement* addFolderToCache(wcharstring folderPath) {
     if(!executeCommandAndReturnString(commandString, resultString)) return NULL;
 
     // parse Json string and convert to vector of individual items
-    std::vector<wcharstring> elementsCache;
+    std::vector<itemsCacheElement> elementsCache;
     try
     {
         nlohmann::json resultJson = nlohmann::json::parse(resultString);
@@ -495,7 +503,12 @@ PathFolderElement* addFolderToCache(wcharstring folderPath) {
             resultJson.begin(), 
             resultJson.end(), 
             [&elementsCache](nlohmann::json &resultLine) {
-                elementsCache.push_back(UTF8toUTF16(resultLine["Name"]));
+                elementsCache.push_back(
+                    itemsCacheElement(
+                        UTF8toUTF16(resultLine["Name"]),
+                        resultLine["IsDir"]
+                    )
+                );
             }
         );
     }
@@ -514,18 +527,18 @@ PathFolderElement* addFolderToCache(wcharstring folderPath) {
     return &(cacheOfFolders.back());
 }
 
-bool isItemInCache(PathFolderElement *cache, wcharstring itemPath)
+itemsCacheElement* getItemFromCache(PathFolderElement *cache, wcharstring itemName)
 {
-    if(cache == NULL) return false;
+    if(cache == NULL) return NULL;
     auto it = std::find_if(
         cache->elementsCache.begin(),
         cache->elementsCache.end(),
-        [itemPath](wcharstring &path) {
-            return itemPath == path;
+        [itemName](itemsCacheElement cachedItem) {
+            return itemName == cachedItem.itemName;
         }
     );
-    if(it == cache->elementsCache.end()) return false;
-    else return true;
+    if(it == cache->elementsCache.end()) return NULL;
+    else return &(*it);
 }
 
 // functions to manage ini file

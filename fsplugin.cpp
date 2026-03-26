@@ -354,9 +354,10 @@ LIBRARY_API int DCPCALL FsPutFileW(WCHAR* LocalName, WCHAR* RemoteName, int Copy
     if(cache == NULL) 
         cache = addFolderToCache(folderPath);
     
-    if(isItemInCache(cache, fileName))
-    {
-        if(!(CopyFlags & FS_COPYFLAGS_OVERWRITE))
+    itemsCacheElement* cachedItem = getItemFromCache(cache, fileName);
+    if(cachedItem) {
+        if(cachedItem->isFolder) return FS_FILE_WRITEERROR; // can't replace if it is folder
+        else if(!(CopyFlags & FS_COPYFLAGS_OVERWRITE))
             return FS_FILE_EXISTS;
     }
 
@@ -414,8 +415,9 @@ LIBRARY_API int DCPCALL FsRenMovFileW(
     if(cache == NULL) 
         cache = addFolderToCache(folderPathNew);
         
-    if(isItemInCache(cache, fileNameNew))
-    {
+    itemsCacheElement* cachedItem = getItemFromCache(cache, fileNameNew);
+    if(cachedItem) {
+        if(cachedItem->isFolder) return FS_FILE_WRITEERROR; // can't replace if it is folder
         if(!OverWrite)
             return FS_FILE_EXISTS;
     }
@@ -522,9 +524,12 @@ LIBRARY_API BOOL DCPCALL FsMkDirW(WCHAR* Path)
     PathFolderElement* cache = getFolderCache(folderPath);
     if(cache == NULL) 
         cache = addFolderToCache(folderPath);
-        
-    if(isItemInCache(cache, fileName))
-        return false; // item with this path already exists
+    
+    itemsCacheElement* cachedItem = getItemFromCache(cache, fileName);
+    if(cachedItem) { // item with this path already exists
+        if(!cachedItem->isFolder) return false;
+        else return true; // no need to create folder if it is already exists
+    }  
 
     // create new folder
     std::string commandString = UTF16toUTF8(
