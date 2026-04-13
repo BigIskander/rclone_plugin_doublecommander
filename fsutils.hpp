@@ -136,7 +136,7 @@ wchar_t rcloneExePath[MAX_PATH] = L"\0";
         siStartInfo.dwFlags = STARTF_USESTDHANDLES;
         siStartInfo.hStdOutput = StdOutHandles[1];
 
-        wchar_t* exePath = rcloneExePath;
+        WCHAR* exePath = rcloneExePath;
         if(isCmd || wcslen(rcloneExePath) == 0) exePath = NULL;
         // create process
         PROCESS_INFORMATION piProcInfo;
@@ -144,7 +144,7 @@ wchar_t rcloneExePath[MAX_PATH] = L"\0";
         std::wstring commandW(UTF8toUTF16(command).c_str()); // make copy of the value
         BOOL isProcessCreated =  CreateProcessW(
             exePath,                                // rclone.exe or just shell
-            const_cast<wchar_t*>(commandW.data()),                               // rclone command
+            const_cast<WCHAR*>(commandW.data()),                               // rclone command
             NULL,                                   // Process handle not inheritable
             NULL,                                   // Thread handle not inheritable
             TRUE,                                   // Set handle inheritance to ???
@@ -358,7 +358,7 @@ wchar_t rcloneExePath[MAX_PATH] = L"\0";
 // set env variables if necessary
 void setEnvVariables()
 {
-    wchar_t value[MAX_PATH]; // variable used to read values from settings
+    WCHAR value[MAX_PATH]; // variable used to read values from settings
 
 #if defined(_WIN32) || defined(_WIN64)    
     // no console window - Windows specific
@@ -375,14 +375,14 @@ void setEnvVariables()
     // read and set path to rclone executable file
     memcpy(&value, 
         UTF8toUTF16(ini.GetValue("rclone_plugin", "rclone_executable_binary_path", "")).c_str(), 
-        MAX_PATH
+        MAX_PATH * sizeof(WCHAR)
     );
-    memcpy(&rcloneExePath, &value, MAX_PATH); // set path to rclone executable
+    memcpy(&rcloneExePath, &value, MAX_PATH * sizeof(WCHAR)); // set path to rclone executable
 
     // read and set path to custom rclone config file
     memcpy(&value, 
         UTF8toUTF16(ini.GetValue("rclone_plugin", "rclone_custom_config_path", "")).c_str(), 
-        MAX_PATH
+        MAX_PATH * sizeof(WCHAR)
     );
 #if defined(_WIN32) || defined(_WIN64)
     if(_wputenv_s(L"RCLONE_CONFIG", value) != 0) 
@@ -400,17 +400,17 @@ void setEnvVariables()
     // read from config is password necessary
     memcpy(&value, 
         UTF8toUTF16(ini.GetValue("rclone_plugin", "rclone_is_config_password_set", "No")).c_str(), 
-        MAX_PATH
+        MAX_PATH * sizeof(WCHAR)
     );
     if(wcharstring((WCHAR*)value) == (WCHAR*)u"Yes") {
         // read password from password's storage
         if(gCryptProc(gPluginNumber, gCryptoNr, FS_CRYPT_LOAD_PASSWORD, (WCHAR*)L"Rclone_plugin", 
-            (WCHAR*)value, MAX_PATH) != FS_FILE_OK
+            (WCHAR*)value, MAX_PATH - 1) != FS_FILE_OK
         ) {
             gLogProc(gPluginNumber, MSGTYPE_IMPORTANTERROR, (WCHAR*)u"Failed to read password from passwords storage");
         }
     } else {
-        memcpy(&value, L"", MAX_PATH);
+        memcpy(&value, (WCHAR*)L"", MAX_PATH * sizeof(WCHAR));
     }
     // set password as env variable
 #if defined(_WIN32) || defined(_WIN64)         

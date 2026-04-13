@@ -26,7 +26,6 @@ License along with this library; if not, write to the Free Software
 #endif
 
 #include <stdio.h>
-#include <cstring>
 #include <string>
 #include <array>
 #include <algorithm>
@@ -117,7 +116,7 @@ LIBRARY_API HANDLE DCPCALL FsFindFirstW(WCHAR* Path, WIN32_FIND_DATAW *FindData)
         // add settings item
         memcpy(
             pRes->resource_array[resultVector.size()].cFileName, 
-            (WCHAR*)u"<Settings>", MAX_PATH
+            (WCHAR*)u"<Settings>", MAX_PATH * sizeof(WCHAR)
         );
         pRes->resource_array[resultVector.size()].ftLastWriteTime = get_empty_time();
 
@@ -129,22 +128,22 @@ LIBRARY_API HANDLE DCPCALL FsFindFirstW(WCHAR* Path, WIN32_FIND_DATAW *FindData)
         // settings menu kinda
         memcpy(
             pRes->resource_array[0].cFileName, 
-            (WCHAR*)u"<0_edit_rclone_executable_binary_path>", MAX_PATH
+            (WCHAR*)u"<0_edit_rclone_executable_binary_path>", MAX_PATH * sizeof(WCHAR)
         );
         pRes->resource_array[0].ftLastWriteTime = get_empty_time();
         memcpy(
             pRes->resource_array[1].cFileName, 
-            (WCHAR*)u"<1_edit_rclone_custom_config_path>", MAX_PATH
+            (WCHAR*)u"<1_edit_rclone_custom_config_path>", MAX_PATH * sizeof(WCHAR)
         );
         pRes->resource_array[1].ftLastWriteTime = get_empty_time();
         memcpy(
             pRes->resource_array[2].cFileName, 
-            (WCHAR*)u"<2_edit_rclone_config_password>", MAX_PATH
+            (WCHAR*)u"<2_edit_rclone_config_password>", MAX_PATH * sizeof(WCHAR)
         );
         pRes->resource_array[2].ftLastWriteTime = get_empty_time();
         memcpy(
             pRes->resource_array[3].cFileName, 
-            (WCHAR*)u"<3_delete_rclone_config_password>", MAX_PATH
+            (WCHAR*)u"<3_delete_rclone_config_password>", MAX_PATH * sizeof(WCHAR)
         );
         pRes->resource_array[3].ftLastWriteTime = get_empty_time();
 
@@ -272,7 +271,7 @@ LIBRARY_API int DCPCALL FsFindClose(HANDLE Hdl)
 
 LIBRARY_API void DCPCALL FsGetDefRootName(char* DefRootName, int maxlen)
 {
-    strncpy(DefRootName, _plugin_name, maxlen);
+    memcpy(DefRootName, _plugin_name, maxlen * sizeof(char));
 }
 
 LIBRARY_API int DCPCALL FsGetFileW(WCHAR* RemoteName, WCHAR* LocalName, int CopyFlags, RemoteInfoStruct* ri)
@@ -616,22 +615,22 @@ LIBRARY_API int DCPCALL FsExecuteFileW(HWND MainWin, WCHAR* RemoteName, WCHAR* V
             #else
                 WCHAR* settingsPath = (WCHAR*)u"/<Settings>";
             #endif
-            memcpy(RemoteName, settingsPath, MAX_PATH); 
+            memcpy(RemoteName, settingsPath, MAX_PATH * sizeof(WCHAR)); 
             return FS_EXEC_SYMLINK;
         } else {
-            wchar_t answear[MAX_PATH];
+            WCHAR answear[MAX_PATH];
             // path to rclone executable binary
             if(wPath == wcharstring((WCHAR*)u"/<Settings>/<0_edit_rclone_executable_binary_path>")) {
                 // read value from config file
                 readSettingsFromIniFile();
                 memcpy(&answear, 
                     UTF8toUTF16(ini.GetValue("rclone_plugin", "rclone_executable_binary_path", "")).c_str(), 
-                    MAX_PATH
+                    MAX_PATH * sizeof(WCHAR)
                 );
                 if(gRequestProc(gPluginNumber, RT_Other, (WCHAR*)u"Rclone plugin", 
                     (WCHAR*)u"Path to rclone executable binary \n"
                         "[left empty if rclone's location folder is in PATH env variable]", 
-                    (WCHAR*)answear, sizeof(answear)
+                    (WCHAR*)answear, MAX_PATH - 1 // -1 because MAX_PATH also should include null terminator
                 )) {
                     // save new value
                     ini.SetValue("rclone_plugin", "rclone_executable_binary_path", 
@@ -646,11 +645,11 @@ LIBRARY_API int DCPCALL FsExecuteFileW(HWND MainWin, WCHAR* RemoteName, WCHAR* V
                 readSettingsFromIniFile();
                 memcpy(&answear, 
                     UTF8toUTF16(ini.GetValue("rclone_plugin", "rclone_custom_config_path", "")).c_str(), 
-                    MAX_PATH
+                    MAX_PATH * sizeof(WCHAR)
                 );
                 if(gRequestProc(gPluginNumber, RT_Other, (WCHAR*)u"Rclone plugin", 
                     (WCHAR*)u"Path to rclone custom config file \n[left empty if default config file is used]", 
-                    (WCHAR*)answear, sizeof(answear)
+                    (WCHAR*)answear, MAX_PATH - 1
                 )) {
                     // save new value
                     ini.SetValue("rclone_plugin", "rclone_custom_config_path", 
@@ -664,18 +663,18 @@ LIBRARY_API int DCPCALL FsExecuteFileW(HWND MainWin, WCHAR* RemoteName, WCHAR* V
                 // read password from password's storage
                 answear[0] = '\0';
                 int ret =  gCryptProc(gPluginNumber, gCryptoNr, FS_CRYPT_LOAD_PASSWORD, 
-                    (WCHAR*)L"Rclone_plugin", (WCHAR*)answear, MAX_PATH);
+                    (WCHAR*)L"Rclone_plugin", (WCHAR*)answear, MAX_PATH - 1);
                 if(ret == FS_FILE_OK || ret == FS_FILE_READERROR)
                 {
                     if(gRequestProc(gPluginNumber, RT_Password, (WCHAR*)u"Rclone plugin", 
                         (WCHAR*)u"Password used to decrypt rclone config file \n"
                             "[left empty if config file is unencrypted]", 
-                        (WCHAR*)answear, sizeof(answear)
+                        (WCHAR*)answear, MAX_PATH - 1
                     )) {
                         if(wcharstring((WCHAR*)answear).length() == 0) {
                             // delete password from storage if empty password
                             if(gCryptProc(gPluginNumber, gCryptoNr, FS_CRYPT_DELETE_PASSWORD, 
-                                (WCHAR*)L"Rclone_plugin",(WCHAR*)answear, MAX_PATH) != FS_FILE_OK
+                                (WCHAR*)L"Rclone_plugin",(WCHAR*)answear, MAX_PATH - 1) != FS_FILE_OK
                             ) {
                                 gRequestProc(gPluginNumber, RT_MsgOK, (WCHAR*)u"Rclone plugin", 
                                     (WCHAR*)u"Failed to change password in passwords store.", NULL, 0);
@@ -685,7 +684,7 @@ LIBRARY_API int DCPCALL FsExecuteFileW(HWND MainWin, WCHAR* RemoteName, WCHAR* V
                         } else {
                             // write new passwrod to storage or update if exists
                             if(gCryptProc(gPluginNumber, gCryptoNr, FS_CRYPT_SAVE_PASSWORD, 
-                                (WCHAR*)L"Rclone_plugin", (WCHAR*)answear, MAX_PATH) != FS_FILE_OK
+                                (WCHAR*)L"Rclone_plugin", (WCHAR*)answear, MAX_PATH - 1) != FS_FILE_OK
                             ) {
                                 gRequestProc(gPluginNumber, RT_MsgOK, (WCHAR*)u"Rclone plugin", 
                                     (WCHAR*)u"Failed to change password in passwords store.", NULL, 0);
@@ -706,7 +705,7 @@ LIBRARY_API int DCPCALL FsExecuteFileW(HWND MainWin, WCHAR* RemoteName, WCHAR* V
                 )) {
                     // delete password from storage
                     if(gCryptProc(gPluginNumber, gCryptoNr, FS_CRYPT_DELETE_PASSWORD, 
-                        (WCHAR*)L"Rclone_plugin",(WCHAR*)answear, MAX_PATH) == FS_FILE_OK
+                        (WCHAR*)L"Rclone_plugin",(WCHAR*)answear, MAX_PATH - 1) == FS_FILE_OK
                     ) {
                         ini.SetValue("rclone_plugin", "rclone_is_config_password_set", "No");
                         saveSettingsToIniFile();
@@ -765,3 +764,4 @@ LIBRARY_API int DCPCALL FsGetBackgroundFlags(void)
 {
     return BG_DOWNLOAD | BG_UPLOAD;
 }
+
