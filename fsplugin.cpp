@@ -124,7 +124,7 @@ LIBRARY_API HANDLE DCPCALL FsFindFirstW(WCHAR* Path, WIN32_FIND_DATAW *FindData)
         // show settings page
         pRes = new tResources;
         pRes->nCount = 0;
-        pRes->resource_array.resize(4);
+        pRes->resource_array.resize(6);
         // settings menu kinda
         memcpy(
             pRes->resource_array[0].cFileName, 
@@ -146,7 +146,16 @@ LIBRARY_API HANDLE DCPCALL FsFindFirstW(WCHAR* Path, WIN32_FIND_DATAW *FindData)
             (WCHAR*)u"<3_delete_rclone_config_password>", MAX_PATH * sizeof(WCHAR)
         );
         pRes->resource_array[3].ftLastWriteTime = get_empty_time();
-
+        memcpy(
+            pRes->resource_array[4].cFileName, 
+            (WCHAR*)u"<4_edit_rclone_custom_flags>", MAX_PATH * sizeof(WCHAR)
+        );
+        pRes->resource_array[4].ftLastWriteTime = get_empty_time();
+        memcpy(
+            pRes->resource_array[5].cFileName, 
+            (WCHAR*)u"<5_edit_rclone_per_connection_custom_flags>", MAX_PATH * sizeof(WCHAR)
+        );
+        pRes->resource_array[5].ftLastWriteTime = get_empty_time();
     } else {
         // request list of items in folder of cloud storage (in json format)
         std::string commandString = UTF16toUTF8(
@@ -717,6 +726,28 @@ LIBRARY_API int DCPCALL FsExecuteFileW(HWND MainWin, WCHAR* RemoteName, WCHAR* V
                             (WCHAR*)u"Failed to delete password from passwords store.", NULL, 0);
                     }
                 }
+            }
+            // custom flags applyed to "rclone copyto" and "rclone moveto" shell commands
+            if(wPath == wcharstring((WCHAR*)u"/<Settings>/<4_edit_rclone_custom_flags>")) {
+                // read value from config file
+                readSettingsFromIniFile();
+                memcpy(&answear, 
+                    UTF8toUTF16(ini.GetValue("rclone_plugin", "rclone_custom_flags", "")).c_str(), 
+                    MAX_PATH * sizeof(WCHAR)
+                );
+                if(gRequestProc(gPluginNumber, RT_Other, (WCHAR*)u"Rclone plugin", 
+                    (WCHAR*)u"Rclone custom flags applyed when copying and moving files by using rclone \n"
+                    "[these flags will be appended to \"rclone copyto\" or \"rclone moveto\" commands]", 
+                    (WCHAR*)answear, MAX_PATH - 1
+                )) {
+                    gRequestProc(gPluginNumber, RT_MsgOK, (WCHAR*)u"Rclone plugin",
+                     (WCHAR*)u"Not implemented yet.", NULL, 0);
+                }
+            }
+            // custom flags applyed to "rclone copyto" and "rclone moveto" shell commands per connection
+            if(wPath == wcharstring((WCHAR*)u"/<Settings>/<5_edit_rclone_per_connection_custom_flags>")) {
+                gRequestProc(gPluginNumber, RT_MsgOK, (WCHAR*)u"Rclone plugin",
+                     (WCHAR*)u"Not implemented yet.", NULL, 0);
             }
         }
         return FS_EXEC_OK;
