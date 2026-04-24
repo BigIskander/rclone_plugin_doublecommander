@@ -83,10 +83,21 @@ std::string trim(std::string value)
     return value.substr(i, j - i + 1);
 }
 
+void toLowerCase(std::string &value) {
+    std::transform(
+        value.begin(), 
+        value.end(), 
+        value.begin(),
+        [](unsigned char s) { 
+            return std::tolower(s); 
+        }
+    );
+}
+
 std::string sanitizeCommandOptions(std::string value)
 {
     value.append(" ");
-    std::string sanitizedValue = "", optionValue = "";
+    std::string sanitizedValue = "", optionValue = "", flag;
     char prev_1 = ' ', prev_2 = ' ', prev_3 = ' ', valueQuotationMark = ' ';
     bool isOptionValue = false;
     bool isOptionName = false;
@@ -113,7 +124,9 @@ std::string sanitizeCommandOptions(std::string value)
             // ' -o ' pattern, one letter option
             if(std::isspace(prev_3) && prev_2 == '-' && std::isalnum(prev_1) && std::isspace(value.at(i))) {
                 // correct one letter option name add to sanitizedValue
-                sanitizedValue.append(value.substr(i - 2, 2)).append(" ");
+                flag = value.substr(i - 2, 2);
+                toLowerCase(flag);
+                sanitizedValue.append(flag).append(" ");
                 isPrevOption = true;
                 continue;
             }
@@ -138,9 +151,16 @@ std::string sanitizeCommandOptions(std::string value)
                 continue;
             } else if(std::isspace(value.at(i))) {
                 // correct multiletter option name add to sanitizedValue
-                sanitizedValue.append(value.substr(j, i - j)).append(" ");
+                flag = value.substr(j, i - j);
+                toLowerCase(flag);
+                // do not allow this flags, appropriate values set via ENV variables instead
+                if( flag != "--config" && flag != "--ask-password" && 
+                    flag != "--no-console" && flag != "--password-command"
+                ) {
+                    sanitizedValue.append(flag).append(" ");
+                    isPrevOption = true;
+                }
                 isOptionName = false;
-                isPrevOption = true;
                 continue;
             } else { // incorrect option name skip this part of string
                 isOptionName = false; 
@@ -168,7 +188,7 @@ std::string sanitizeCommandOptions(std::string value)
     if(isOptionValue && !optionValue.empty()) {
         sanitizedValue.append(sanitize(optionValue)).append(" "); 
     }
-    return sanitizedValue;
+    return sanitizedValue.substr(0, sanitizedValue.length() - 1);
 }
 
 wcharstring sanitizeCommandOptions(wcharstring value) {
