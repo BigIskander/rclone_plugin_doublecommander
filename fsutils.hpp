@@ -171,6 +171,10 @@ std::string sanitizeCommandOptions(std::string value)
     return sanitizedValue;
 }
 
+wcharstring sanitizeCommandOptions(wcharstring value) {
+    return UTF8toUTF16(sanitizeCommandOptions(UTF16toUTF8(value.data())));
+}
+
 wchar_t rcloneExePath[MAX_PATH] = L"\0";
 
 #if  defined(_WIN32) || defined(_WIN64)
