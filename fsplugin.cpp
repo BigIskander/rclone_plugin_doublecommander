@@ -741,6 +741,8 @@ LIBRARY_API int DCPCALL FsExecuteFileW(HWND MainWin, WCHAR* RemoteName, WCHAR* V
                     (WCHAR*)answear, MAX_PATH - 1
                 )) {
                     gRequestProc(gPluginNumber, RT_MsgOK, (WCHAR*)u"Rclone plugin",
+                     (WCHAR*)UTF8toUTF16(sanitizeCommandOptions(UTF16toUTF8(answear))).data(), NULL, 0);
+                    gRequestProc(gPluginNumber, RT_MsgOK, (WCHAR*)u"Rclone plugin",
                      (WCHAR*)u"Not implemented yet.", NULL, 0);
                 }
             }

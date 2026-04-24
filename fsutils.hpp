@@ -65,6 +65,11 @@ wcharstring sanitize(wcharstring value)
     return sanitizedValue;
 }
 
+std::string sanitize(std::string value)
+{
+    return UTF16toUTF8(sanitize(UTF8toUTF16(value)).data());
+}
+
 std::string trim(std::string value)
 {
     int i, j;
@@ -76,6 +81,94 @@ std::string trim(std::string value)
     }
     if(i == j && std::isspace(value.at(j))) return std::string();
     return value.substr(i, j - i + 1);
+}
+
+std::string sanitizeCommandOptions(std::string value)
+{
+    value.append(" ");
+    std::string sanitizedValue = "", optionValue = "";
+    char prev_1 = ' ', prev_2 = ' ', prev_3 = ' ', valueQuotationMark = ' ';
+    bool isOptionValue = false;
+    bool isOptionName = false;
+    bool isPrevOption = false;
+    bool isSkip = false;
+    bool isEscape = false;
+    int i = 0, j = 0;
+    for(; i < value.length(); i++) 
+    {
+        if(i > 0) prev_1 = value.at(i - 1);
+        if(i > 1) prev_2 = value.at(i - 2);
+        if(i > 2) prev_3 = value.at(i - 3);
+        if(isSkip) {
+            if(std::isspace(i)) isSkip = false;
+            continue;
+        }
+        if(!isOptionName && !isOptionValue) {
+            // --option , ' --o' pattern, option name begin
+            if(std::isspace(prev_3) && prev_2 == '-' && prev_1 == '-' && std::isalnum(value.at(i))) {
+                j = i - 2;
+                isOptionName = true;
+                continue;
+            } 
+            // ' -o ' pattern, one letter option
+            if(std::isspace(prev_3) && prev_2 == '-' && std::isalnum(prev_1) && std::isspace(value.at(i))) {
+                // correct one letter option name add to sanitizedValue
+                sanitizedValue.append(value.substr(i - 2, 2)).append(" ");
+                isPrevOption = true;
+                continue;
+            }
+            // check if it is option value
+            if(isPrevOption) {
+                // not empty and not begining of another option name
+                if(std::isspace(prev_1) && !std::isspace(value.at(i)) && value.at(i) != '-') { 
+                    if(value.at(i) == '"' || value.at(i) == '\'') {
+                        valueQuotationMark = value.at(i);
+                    } else {
+                        valueQuotationMark = ' ';
+                        optionValue.push_back(value.at(i));
+                    }
+                    isPrevOption = false;
+                    isOptionValue = true;
+                }
+            }
+            continue;
+        } else if(isOptionName) {
+            // only regex [0-9a-zA-Z\-] equivalent characters allowed in option names, and no '--' in the middle
+            if(std::isalnum(value.at(i)) || (std::isalnum(prev_1) && value.at(i) == '-')) {
+                continue;
+            } else if(std::isspace(value.at(i))) {
+                // correct multiletter option name add to sanitizedValue
+                sanitizedValue.append(value.substr(j, i - j)).append(" ");
+                isOptionName = false;
+                isPrevOption = true;
+                continue;
+            } else { // incorrect option name skip this part of string
+                isOptionName = false; 
+                isSkip = true;
+                continue;
+            }
+        } else if(isOptionValue) {
+            if(!isEscape && value.at(i) == '\\') { // escape character used
+                isEscape = true;
+                continue;
+            }
+            if(value.at(i) != valueQuotationMark || (isEscape && value.at(i) == valueQuotationMark)) {
+                optionValue.push_back(value.at(i));
+                isEscape = false;
+                continue;
+            } else if(value.at(i) == valueQuotationMark) {
+                sanitizedValue.append(sanitize(optionValue)).append(" ");
+                optionValue = "";
+                valueQuotationMark = ' ';
+                isOptionValue = false;
+                isSkip = true;
+            }
+        }
+    }
+    if(isOptionValue && !optionValue.empty()) {
+        sanitizedValue.append(sanitize(optionValue)).append(" "); 
+    }
+    return sanitizedValue;
 }
 
 wchar_t rcloneExePath[MAX_PATH] = L"\0";
