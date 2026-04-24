@@ -46,6 +46,9 @@ wcharstring sanitize(wcharstring value)
             sanitizedValue.push_back((WCHAR)u'^');
             sanitizedValue.push_back(value.at(i));
             sanitizedValue.push_back((WCHAR)u'"');
+        } else if(value.at(i) == (WCHAR)u'"') {
+            sanitizedValue.push_back((WCHAR)u'\\');
+            sanitizedValue.push_back(value.at(i));
         } else {
             sanitizedValue.push_back(value.at(i));
         }
