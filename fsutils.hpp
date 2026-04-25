@@ -688,6 +688,28 @@ void saveSettingsToIniFile()
     };
 }
 
+// functions to manage custom flags
+std::map<wcharstring, wcharstring> customFlags;
+wcharstring getFlags(wcharstring storageName, bool update = false)
+{
+    if (customFlags.find(storageName) == customFlags.end() || update) {
+        // if flag not found in map read it from ini and add to map
+        std::string key = std::string("rclone_custom_flags_").append(UTF16toUTF8(storageName.data()));
+        std::string value = ini.GetValue("rclone_plugin", key.c_str(), "");
+        customFlags[storageName] = UTF8toUTF16(sanitizeCommandOptions(value));
+    }
+    // return flag from map
+    return customFlags[storageName];
+}
+
+void setFlags(wcharstring flags, wcharstring storageName)
+{
+    std::string key = std::string("rclone_custom_flags_").append(UTF16toUTF8(storageName.data()));
+    ini.SetValue("rclone_plugin", key.data(), UTF16toUTF8(sanitizeCommandOptions(flags).data()).c_str());
+    customFlags.clear();
+    saveSettingsToIniFile();
+}
+
 // functions to support multithreading
 std::vector<int> putThreads;
 #if defined(_WIN32) || defined(_WIN64)

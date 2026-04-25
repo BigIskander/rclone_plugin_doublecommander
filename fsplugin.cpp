@@ -310,13 +310,17 @@ LIBRARY_API int DCPCALL FsGetFileW(WCHAR* RemoteName, WCHAR* LocalName, int Copy
     if(gProgressProc(gPluginNumber, RemoteName, LocalName, 0) != 0) 
         return FS_FILE_USERABORT;
 
+    wcharstring flagsKey = (WCHAR*)u"default";
     std::string commandString;
     if(CopyFlags & FS_COPYFLAGS_MOVE) {
         commandString = UTF16toUTF8(
                 wcharstring((WCHAR*)u"rclone moveto ") // move
                     .append(sanitize(wPath.substr(1))) // from
                     .append((WCHAR*)u" ")
-                    .append(sanitize(wLocal)).data() // to
+                    .append(sanitize(wLocal)) // to
+                    .append((WCHAR*)u" ")
+                    .append(getFlags(flagsKey)) // custom flags
+                    .data() 
             ); // move if move flag sent (this flag sent only in Total Commander)
     } else {
         // copy file from to (replaces file if already exists)
@@ -324,7 +328,10 @@ LIBRARY_API int DCPCALL FsGetFileW(WCHAR* RemoteName, WCHAR* LocalName, int Copy
             wcharstring((WCHAR*)u"rclone copyto ") // copy
                 .append(sanitize(wPath.substr(1))) // from
                 .append((WCHAR*)u" ")
-                .append(sanitize(wLocal)).data() // to
+                .append(sanitize(wLocal)) // to
+                .append((WCHAR*)u" ")
+                .append(getFlags(flagsKey)) // custom flags
+                .data() 
         );
     }
     if(!executeCommand2(commandString)) return FS_FILE_WRITEERROR;
@@ -373,13 +380,17 @@ LIBRARY_API int DCPCALL FsPutFileW(WCHAR* LocalName, WCHAR* RemoteName, int Copy
             return FS_FILE_EXISTS;
     }
 
+    wcharstring flagsKey = (WCHAR*)u"default";
     std::string commandString;
     if(CopyFlags & FS_COPYFLAGS_MOVE) {
         commandString = UTF16toUTF8(
             wcharstring((WCHAR*)u"rclone moveto ") // move
                 .append(sanitize(wLocal)) // from
                 .append((WCHAR*)u" ")
-                .append(sanitize(wPath.substr(1))).data() // to
+                .append(sanitize(wPath.substr(1))) // to
+                .append((WCHAR*)u" ")
+                .append(getFlags(flagsKey)) // custom flags
+                .data() 
         ); // move if move flag sent (this flag sent only in Total Commander)
     } else {
         // copy file from to (replaces file if already exists)
@@ -387,7 +398,10 @@ LIBRARY_API int DCPCALL FsPutFileW(WCHAR* LocalName, WCHAR* RemoteName, int Copy
                 wcharstring((WCHAR*)u"rclone copyto ") // copy
                     .append(sanitize(wLocal)) // from
                     .append((WCHAR*)u" ")
-                    .append(sanitize(wPath.substr(1))).data() // to
+                    .append(sanitize(wPath.substr(1))) // to
+                    .append((WCHAR*)u" ")
+                    .append(getFlags(flagsKey)) // custom flags
+                    .data()
             );
     }
     if(!executeCommand2(commandString)) return FS_FILE_WRITEERROR;
@@ -438,20 +452,27 @@ LIBRARY_API int DCPCALL FsRenMovFileW(
         return FS_FILE_USERABORT;
 
     // move or copy file from to (replaces file if already exists)
+    wcharstring flagsKey = (WCHAR*)u"default";
     std::string commandString;
     if(Move) {
         commandString = UTF16toUTF8(
             wcharstring((WCHAR*)u"rclone moveto ") // move
                 .append(sanitize(wPathOld.substr(1))) // from
                 .append((WCHAR*)u" ")
-                .append(sanitize(wPathNew.substr(1))).data() // to
+                .append(sanitize(wPathNew.substr(1))) // to
+                .append((WCHAR*)u" ")
+                .append(getFlags(flagsKey)) // custom flags
+                .data()
         );
     } else {
         commandString = UTF16toUTF8(
             wcharstring((WCHAR*)u"rclone copyto ") // copy
                 .append(sanitize(wPathOld.substr(1))) // from
                 .append((WCHAR*)u" ")
-                .append(sanitize(wPathNew.substr(1))).data() // to
+                .append(sanitize(wPathNew.substr(1))) // to
+                .append((WCHAR*)u" ")
+                .append(getFlags(flagsKey)) // custom flags
+                .data()
         );
     }
     if(!executeCommand2(commandString)) return FS_FILE_WRITEERROR;
@@ -628,6 +649,7 @@ LIBRARY_API int DCPCALL FsExecuteFileW(HWND MainWin, WCHAR* RemoteName, WCHAR* V
             return FS_EXEC_SYMLINK;
         } else {
             WCHAR answear[MAX_PATH];
+            WCHAR bigAnswear[4096];
             // path to rclone executable binary
             if(wPath == wcharstring((WCHAR*)u"/<Settings>/<0_edit_rclone_executable_binary_path>")) {
                 // read value from config file
@@ -731,19 +753,14 @@ LIBRARY_API int DCPCALL FsExecuteFileW(HWND MainWin, WCHAR* RemoteName, WCHAR* V
             if(wPath == wcharstring((WCHAR*)u"/<Settings>/<4_edit_rclone_custom_flags>")) {
                 // read value from config file
                 readSettingsFromIniFile();
-                memcpy(&answear, 
-                    UTF8toUTF16(ini.GetValue("rclone_plugin", "rclone_custom_flags", "")).c_str(), 
-                    MAX_PATH * sizeof(WCHAR)
-                );
+                wcharstring flags = getFlags((WCHAR*)u"default", true);
+                memcpy(&bigAnswear, flags.data(), 4096 * sizeof(WCHAR));
                 if(gRequestProc(gPluginNumber, RT_Other, (WCHAR*)u"Rclone plugin", 
                     (WCHAR*)u"Rclone custom flags applyed when copying and moving files by using rclone \n"
                     "[these flags will be appended to \"rclone copyto\" or \"rclone moveto\" commands]", 
-                    (WCHAR*)answear, MAX_PATH - 1
+                    (WCHAR*)bigAnswear, 4096 - 1
                 )) {
-                    gRequestProc(gPluginNumber, RT_MsgOK, (WCHAR*)u"Rclone plugin",
-                     (WCHAR*)sanitizeCommandOptions(answear).data(), NULL, 0);
-                    gRequestProc(gPluginNumber, RT_MsgOK, (WCHAR*)u"Rclone plugin",
-                     (WCHAR*)u"Not implemented yet.", NULL, 0);
+                    setFlags(bigAnswear, (WCHAR*)u"default");
                 }
             }
             // custom flags applyed to "rclone copyto" and "rclone moveto" shell commands per connection
