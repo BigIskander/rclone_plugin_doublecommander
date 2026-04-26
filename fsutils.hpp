@@ -379,6 +379,7 @@ wchar_t rcloneExePath[MAX_PATH] = L"\0";
     // execute shell command and return stdout pipe
     std::unique_ptr<FILE, decltype(&pclose)> executeCommand(std::string commandString)
     {
+        // gLogProc(gPluginNumber, MSGTYPE_DETAILS, (WCHAR*)UTF8toUTF16(commandString).data());
         std::string command(commandString);        
         if(wcharstring((WCHAR*)rcloneExePath) != (WCHAR*)u"") {
             command = command
@@ -566,6 +567,17 @@ struct PathFolderElement
 };
 
 std::vector<PathFolderElement> cacheOfFolders;
+
+void getConnectionName(wcharstring wPath, wcharstring& connectionName)
+{
+    if(wPath.length() < 2) {
+        connectionName = (WCHAR*)u"";
+        return;
+    }
+    size_t nPos = wPath.substr(1).find_first_of((WCHAR*)u"/");
+    if(nPos == std::string::npos) nPos = wPath.length() - 1;
+    connectionName = wPath.substr(1, nPos);
+}
 
 void getFolderPath(wcharstring wPath, wcharstring& folderPath)
 {

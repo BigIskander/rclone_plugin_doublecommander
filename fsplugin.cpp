@@ -111,6 +111,7 @@ LIBRARY_API HANDLE DCPCALL FsFindFirstW(WCHAR* Path, WIN32_FIND_DATAW *FindData)
                 resultVector[i].data(), 
                 str_size * sizeof(WCHAR)
             );
+            pRes->resource_array[i].ftLastWriteTime = get_empty_time();
             pRes->resource_array[i].dwFileAttributes = FILE_ATTRIBUTE_DIRECTORY;
         }
         // add settings item
@@ -156,6 +157,31 @@ LIBRARY_API HANDLE DCPCALL FsFindFirstW(WCHAR* Path, WIN32_FIND_DATAW *FindData)
             (WCHAR*)u"<5_edit_rclone_per_connection_custom_flags>", MAX_PATH * sizeof(WCHAR)
         );
         pRes->resource_array[5].ftLastWriteTime = get_empty_time();
+    } else if(wPath == (WCHAR*)u"/<Settings>/<5_edit_rclone_per_connection_custom_flags>") {
+        // request list of configured storages (available remotes) from rclone's config 
+        std::string commandString("rclone listremotes");
+        if(!executeCommandAndReturnVector(commandString, resultVector)) {
+            resultVector = std::vector<wcharstring>(); // just make it empty vector of results
+        }
+
+        pRes = new tResources;
+        pRes->nCount = 0;
+        pRes->resource_array.resize(resultVector.size());
+
+        size_t str_size;
+        wcharstring itemName;
+        for(int i = 0; i < resultVector.size(); i++) 
+        {
+            itemName = resultVector[i];
+            str_size = (MAX_PATH > resultVector[i].size()+1) ? 
+                (resultVector[i].size()+1): MAX_PATH;
+            memcpy(
+                pRes->resource_array[i].cFileName, 
+                resultVector[i].data(), 
+                str_size * sizeof(WCHAR)
+            );
+            pRes->resource_array[i].ftLastWriteTime = get_empty_time();
+        }
     } else {
         // request list of items in folder of cloud storage (in json format)
         std::string commandString = UTF16toUTF8(
@@ -310,7 +336,12 @@ LIBRARY_API int DCPCALL FsGetFileW(WCHAR* RemoteName, WCHAR* LocalName, int Copy
     if(gProgressProc(gPluginNumber, RemoteName, LocalName, 0) != 0) 
         return FS_FILE_USERABORT;
 
-    wcharstring flagsKey = (WCHAR*)u"default";
+    // get flags
+    wcharstring flagsKey;
+    getConnectionName(wPath, flagsKey);
+    wcharstring flags = getFlags(flagsKey);
+    if(flags == (WCHAR*)u"") flags = getFlags((WCHAR*)u"default");
+    
     std::string commandString;
     if(CopyFlags & FS_COPYFLAGS_MOVE) {
         commandString = UTF16toUTF8(
@@ -319,7 +350,7 @@ LIBRARY_API int DCPCALL FsGetFileW(WCHAR* RemoteName, WCHAR* LocalName, int Copy
                     .append((WCHAR*)u" ")
                     .append(sanitize(wLocal)) // to
                     .append((WCHAR*)u" ")
-                    .append(getFlags(flagsKey)) // custom flags
+                    .append(flags) // custom flags
                     .data() 
             ); // move if move flag sent (this flag sent only in Total Commander)
     } else {
@@ -330,7 +361,7 @@ LIBRARY_API int DCPCALL FsGetFileW(WCHAR* RemoteName, WCHAR* LocalName, int Copy
                 .append((WCHAR*)u" ")
                 .append(sanitize(wLocal)) // to
                 .append((WCHAR*)u" ")
-                .append(getFlags(flagsKey)) // custom flags
+                .append(flags) // custom flags
                 .data() 
         );
     }
@@ -380,7 +411,12 @@ LIBRARY_API int DCPCALL FsPutFileW(WCHAR* LocalName, WCHAR* RemoteName, int Copy
             return FS_FILE_EXISTS;
     }
 
-    wcharstring flagsKey = (WCHAR*)u"default";
+    // get flags
+    wcharstring flagsKey;
+    getConnectionName(wPath, flagsKey);
+    wcharstring flags = getFlags(flagsKey);
+    if(flags == (WCHAR*)u"") flags = getFlags((WCHAR*)u"default");
+
     std::string commandString;
     if(CopyFlags & FS_COPYFLAGS_MOVE) {
         commandString = UTF16toUTF8(
@@ -389,7 +425,7 @@ LIBRARY_API int DCPCALL FsPutFileW(WCHAR* LocalName, WCHAR* RemoteName, int Copy
                 .append((WCHAR*)u" ")
                 .append(sanitize(wPath.substr(1))) // to
                 .append((WCHAR*)u" ")
-                .append(getFlags(flagsKey)) // custom flags
+                .append(flags) // custom flags
                 .data() 
         ); // move if move flag sent (this flag sent only in Total Commander)
     } else {
@@ -400,7 +436,7 @@ LIBRARY_API int DCPCALL FsPutFileW(WCHAR* LocalName, WCHAR* RemoteName, int Copy
                     .append((WCHAR*)u" ")
                     .append(sanitize(wPath.substr(1))) // to
                     .append((WCHAR*)u" ")
-                    .append(getFlags(flagsKey)) // custom flags
+                    .append(flags) // custom flags
                     .data()
             );
     }
@@ -451,6 +487,17 @@ LIBRARY_API int DCPCALL FsRenMovFileW(
     if(gProgressProc(gPluginNumber, OldName, NewName, 0) != 0) 
         return FS_FILE_USERABORT;
 
+    // get flags
+    wcharstring flagsKeyOld, flagsKeyNew, flags;
+    getConnectionName(wPathOld, flagsKeyOld);
+    getConnectionName(wPathNew, flagsKeyNew);
+    if(flagsKeyOld == flagsKeyNew) {
+        flags = getFlags(flagsKeyOld);
+        if(flags == (WCHAR*)u"") flags = getFlags((WCHAR*)u"default");
+    } else {
+        flags = getFlags((WCHAR*)u"default");
+    }
+
     // move or copy file from to (replaces file if already exists)
     wcharstring flagsKey = (WCHAR*)u"default";
     std::string commandString;
@@ -461,7 +508,7 @@ LIBRARY_API int DCPCALL FsRenMovFileW(
                 .append((WCHAR*)u" ")
                 .append(sanitize(wPathNew.substr(1))) // to
                 .append((WCHAR*)u" ")
-                .append(getFlags(flagsKey)) // custom flags
+                .append(flags) // custom flags
                 .data()
         );
     } else {
@@ -471,7 +518,7 @@ LIBRARY_API int DCPCALL FsRenMovFileW(
                 .append((WCHAR*)u" ")
                 .append(sanitize(wPathNew.substr(1))) // to
                 .append((WCHAR*)u" ")
-                .append(getFlags(flagsKey)) // custom flags
+                .append(flags) // custom flags
                 .data()
         );
     }
@@ -755,9 +802,11 @@ LIBRARY_API int DCPCALL FsExecuteFileW(HWND MainWin, WCHAR* RemoteName, WCHAR* V
                 readSettingsFromIniFile();
                 wcharstring flags = getFlags((WCHAR*)u"default", true);
                 memcpy(&bigAnswear, flags.data(), 4096 * sizeof(WCHAR));
+                wcharstring msgText = (WCHAR*)u"Rclone custom flags applyed by default when copying"
+                    " and moving files by using rclone \n"
+                    "[these flags will be appended to \"rclone copyto\" or \"rclone moveto\" commands]";
                 if(gRequestProc(gPluginNumber, RT_Other, (WCHAR*)u"Rclone plugin", 
-                    (WCHAR*)u"Rclone custom flags applyed when copying and moving files by using rclone \n"
-                    "[these flags will be appended to \"rclone copyto\" or \"rclone moveto\" commands]", 
+                    (WCHAR*)msgText.data(), 
                     (WCHAR*)bigAnswear, 4096 - 1
                 )) {
                     setFlags(bigAnswear, (WCHAR*)u"default");
@@ -765,8 +814,38 @@ LIBRARY_API int DCPCALL FsExecuteFileW(HWND MainWin, WCHAR* RemoteName, WCHAR* V
             }
             // custom flags applyed to "rclone copyto" and "rclone moveto" shell commands per connection
             if(wPath == wcharstring((WCHAR*)u"/<Settings>/<5_edit_rclone_per_connection_custom_flags>")) {
-                gRequestProc(gPluginNumber, RT_MsgOK, (WCHAR*)u"Rclone plugin",
-                     (WCHAR*)u"Not implemented yet.", NULL, 0);
+                #if  defined(_WIN32) || defined(_WIN64)
+                    WCHAR* settingsPath = (WCHAR*)u"\\<Settings>\\<5_edit_rclone_per_connection_custom_flags>";
+                #else
+                    WCHAR* settingsPath = (WCHAR*)u"/<Settings>/<5_edit_rclone_per_connection_custom_flags>";
+                #endif
+                memcpy(RemoteName, settingsPath, MAX_PATH * sizeof(WCHAR)); 
+                return FS_EXEC_SYMLINK;
+            } else 
+            // ok
+            if(wPath.substr(
+                    0, wcharstring((WCHAR*)u"/<Settings>/<5_edit_rclone_per_connection_custom_flags>").length() 
+                ) == wcharstring((WCHAR*)u"/<Settings>/<5_edit_rclone_per_connection_custom_flags>")
+            ) {
+                wcharstring key;
+                getFileName(wPath, key);
+                // read value from config file
+                readSettingsFromIniFile();
+                wcharstring flags = getFlags((WCHAR*)key.data(), true);
+                memcpy(&bigAnswear, flags.data(), 4096 * sizeof(WCHAR));
+                wcharstring msgText = (WCHAR*)u"Rclone custom flags applyed when copying"
+                    " and moving files by using rclone \n";
+                msgText = msgText.append((WCHAR*)u"Applyed for ").append(key)
+                    .append((WCHAR*)u" storage only. \n");
+                msgText = msgText.append((WCHAR*)u"[these flags will be appended to \"rclone copyto\""
+                    " or \"rclone moveto\" commands]");
+                // show setting value
+                if(gRequestProc(gPluginNumber, RT_Other, (WCHAR*)u"Rclone plugin", 
+                    (WCHAR*)msgText.data(), 
+                    (WCHAR*)bigAnswear, 4096 - 1
+                )) {
+                    setFlags(bigAnswear, (WCHAR*)key.data());
+                }
             }
         }
         return FS_EXEC_OK;
